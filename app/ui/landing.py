@@ -17,7 +17,7 @@ def render():
     st.image(str(ASSETS_PATH / "banner.jpg"), use_container_width=True)
 
     st.markdown("---")
-    st.markdown("### 🔍 What can you do with FinSightAI?")
+    st.markdown("### 🔍 What can you do with FinSight AI?")
 
     st.markdown(
         """
