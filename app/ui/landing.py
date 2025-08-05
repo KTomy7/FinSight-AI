@@ -18,7 +18,7 @@ def render():
     if banner_path.exists():
         st.image(str(banner_path), use_container_width=True)
     else:
-        st.warning("⚠️ Banner image not found. Please ensure 'banner.jpg' is present in the assets directory.")
+        st.warning(f"⚠️ Banner image not found. Please ensure 'banner.jpg' is present at: {banner_path}")
 
     st.markdown("---")
     st.markdown("### 🔍 What can you do with FinSight AI?")
