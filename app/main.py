@@ -1,5 +1,5 @@
 import streamlit as st
-from ui import landing, predictor, compare_models, layout
+from ui import *
 
 def main():
     st.set_page_config(
@@ -9,13 +9,13 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    selected = layout.render_sidebar()
+    selected = render_layout()
     if selected == "Home":
-        landing.render()
+        render_landing()
     elif selected == "Predict":
-        predictor.render()
+        render_predictor()
     elif selected == "Compare Models":
-        compare_models.render()
+        render_comparison()
 
 if __name__ == "__main__":
     main()

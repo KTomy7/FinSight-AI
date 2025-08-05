@@ -1,4 +1,6 @@
 import streamlit as st
+from core.stock_service import StockDataService
+import matplotlib.pyplot as plt
 
 def render():
     st.title("Stock Price Predictor")
@@ -8,18 +10,15 @@ def render():
 
     col1, col2 = st.columns(2)
 
-    # Step 1: Select a stock ticker
     with col1:
         ticker = st.selectbox("Choose a stock ticker", ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NFLX"])
 
-    # Step 2: Select prediction model
     with col2:
         model_choice = st.selectbox(
             "Choose a prediction model",
             ["Linear Regression", "Random Forest", "LSTM (Neural Network)"]
         )
 
-    # Step 3: Select prediction horizon
     horizon = st.slider(
         "Prediction horizon (in days)",
         min_value=7,
@@ -28,10 +27,32 @@ def render():
         help="How far into the future you want the model to forecast stock prices."
     )
 
-    # Step 4: Prediction trigger
     predict_button = st.button("🚀 Run Prediction")
 
-    # Placeholder for results
     if predict_button:
-        st.info("Prediction is running... (logic to be added)")
-        # In the future: call run_prediction(ticker, model_choice, horizon)
+        try:
+            # add a writeline with the selected ticker
+            st.write(f"Fetching data for ticker: **{ticker}** using model: **{model_choice}** for the next {horizon} days...")
+            data_service = StockDataService(ticker=ticker, period="5y", interval="1d")
+            df = data_service.get_stock_history_data()
+            summary = data_service.get_summary_info()
+
+            # Display summary
+            st.subheader("📊 Stock Information")
+            st.write(summary)
+
+            # Show raw data
+            st.subheader("🧾 Raw Historical Data")
+            st.dataframe(df.tail(10), use_container_width=True)
+
+            # Plot closing prices
+            st.subheader("📉 Closing Price Over Time")
+            fig, ax = plt.subplots()
+            ax.plot(df['Date'], df['Close'])
+            ax.set_xlabel("Date")
+            ax.set_ylabel("Close Price ($)")
+            ax.set_title(f"{ticker} Closing Price")
+            st.pyplot(fig)
+
+        except Exception as e:
+            st.error(f"Failed to fetch data: {e}")
