@@ -1,6 +1,6 @@
-from core.data import get_stock_data
-from core.features import create_lag_features
-from core.utils import scale_data, split_data
+from finsight.core.data import get_stock_data
+from finsight.core.features import create_lag_features
+from finsight.core.utils import scale_data, split_data
 
 def prepare_stock_data_for_prediction(ticker: str, window: int = 5, period: str = "1y", interval: str = "1d"):
     """

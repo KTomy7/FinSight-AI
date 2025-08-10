@@ -1,5 +1,5 @@
 import streamlit as st
-from ui import *
+from finsight.ui import *
 
 def main():
     st.set_page_config(

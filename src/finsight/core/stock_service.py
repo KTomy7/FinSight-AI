@@ -1,5 +1,5 @@
-from core.data import fetch_stock_history, fetch_stock_summary
-import pandas as pd
+from finsight.core.data import fetch_stock_history, fetch_stock_summary
+
 
 class StockDataService:
     def __init__(self,  ticker: str, period: str = "5y", interval: str = "1d"):
