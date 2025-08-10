@@ -7,7 +7,7 @@ class StockDataService:
         self.period = period
         self.interval = interval
 
-    def get_stock_history_data(self):
+    def get_stock_history(self):
         """
         Retrieves stock data for a given stock symbol.
         """

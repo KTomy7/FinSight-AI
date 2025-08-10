@@ -35,3 +35,11 @@ def fetch_stock_summary(ticker: str) -> dict:
 
     except Exception as e:
         raise RuntimeError(f"Failed to fetch stock summary: {e}")
+
+def get_stock_data(ticker: str, period: str = "1y", interval: str = "1d") -> pd.DataFrame:
+    """
+    Fetch historical stock data for a given ticker. For prediction purposes, we use a shorter period and daily interval.
+    """
+    df = yf.download(tickers=ticker, period=period, interval=interval, auto_adjust=True)
+    df = df.dropna().reset_index()  # Ensures 'Date' is a column
+    return df

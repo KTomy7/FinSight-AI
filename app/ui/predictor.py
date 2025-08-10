@@ -31,10 +31,9 @@ def render():
 
     if predict_button:
         try:
-            # add a writeline with the selected ticker
             st.write(f"Fetching data for ticker: **{ticker}** using model: **{model_choice}** for the next {horizon} days...")
             data_service = StockDataService(ticker=ticker, period="5y", interval="1d")
-            df = data_service.get_stock_history_data()
+            df = data_service.get_stock_history()
             summary = data_service.get_summary_info()
 
             # Display summary
