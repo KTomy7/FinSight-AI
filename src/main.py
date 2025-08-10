@@ -1,7 +1,8 @@
 import streamlit as st
-from finsight.ui import *
+from finsight.ui import render_layout, PAGE_HANDLERS
 
-def main():
+def configure_page():
+    """Configure the Streamlit page settings."""
     st.set_page_config(
         page_title="FinSight AI",
         page_icon="📈",
@@ -9,13 +10,20 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    selected = render_layout()
-    if selected == "Home":
-        render_landing()
-    elif selected == "Predict":
-        render_predictor()
-    elif selected == "Compare Models":
-        render_comparison()
+def main():
+    """Main application entry point."""
+    configure_page()
 
+    try:
+        selected = render_layout()
+
+        handler = PAGE_HANDLERS.get(selected)
+        if handler:
+            handler()
+        else:
+            st.error(f"Page '{selected}' not found.")
+
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
 if __name__ == "__main__":
     main()
