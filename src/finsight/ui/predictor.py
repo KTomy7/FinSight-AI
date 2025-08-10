@@ -33,7 +33,7 @@ def render():
         try:
             st.write(f"Fetching data for ticker: **{ticker}** using model: **{model_choice}** for the next {horizon} days...")
             data_service = StockDataService(ticker=ticker, period="5y", interval="1d")
-            df = data_service.get_stock_history()
+            df = data_service.get_stock_data()
             summary = data_service.get_summary_info()
 
             # Display summary

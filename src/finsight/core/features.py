@@ -1,16 +1,47 @@
 import pandas as pd
+import numpy as np
+from numpy import typing as npt
+from typing import Tuple
 
-def create_lag_features(df: pd.DataFrame, window: int = 5):
+def create_lag_features(df: pd.DataFrame, window: int = 5) -> Tuple[npt.NDArray, npt.NDArray]:
     """
-    Create lag features for stock price prediction. Lag features are used to predict future values based on past values.
-    This function scales the 'Close' prices to a range of 0 to 1, then creates sequences of past values (lags) for the specified window size.
+    Creates lag features for stock price prediction.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing stock data with a 'Close' column.
+    window : int
+        Number of previous time steps to use as features for the current time step.
+        Must be between 1 and len(df)-1.
+
+    Returns
+    -------
+    Tuple[npt.NDArray, npt.NDArray] containing:
+    X : np.ndarray
+        Array of lagged features with shape (n_samples, window).
+    y : np.ndarray
+        Array of target values (current time step).
+
     """
     df = df.copy()
+    close_values = df['Close'].values
+
+    close_min = close_values.min()
+    close_max = close_values.max()
+
+    if close_min == close_max:
+        df['Close_scaled'] = np.zeros_like(close_values)
+    else:
+        df['Close_scaled'] = (close_values - close_min) / (close_max - close_min)
+
     df['Close_scaled'] = (df['Close'] - df['Close'].min()) / (df['Close'].max() - df['Close'].min())
 
     X, y = [], []
-    for i in range(window, len(df)):
-        X.append(df['Close_scaled'].values[i - window:i])
-        y.append(df['Close_scaled'].values[i])
+    scaled_values = df['Close_scaled'].values
 
-    return X, y
+    for i in range(window, len(df)):
+        X.append(scaled_values[i - window:i])
+        y.append(scaled_values[i])
+
+    return np.array(X), np.array(y)
