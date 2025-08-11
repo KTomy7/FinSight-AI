@@ -1,5 +1,5 @@
 import streamlit as st
-from finsight.core.stock_service import StockDataService
+from finsight.core.services.stock_service import StockDataService
 import matplotlib.pyplot as plt
 
 def render():
