@@ -41,7 +41,12 @@ def scale_data(
     y_scaler = MinMaxScaler()
 
     try:
-        X_scaled = X_scaler.fit_transform(X.reshape(-1, X.shape[-1])).reshape(X.shape)
+        # Reshape X to 2D for scaling
+        X_reshaped = X.reshape(-1, X.shape[-1])
+        # Scale the reshaped X
+        X_scaled_reshaped = X_scaler.fit_transform(X_reshaped)
+        # Reshape back to original shape
+        X_scaled = X_scaled_reshaped.reshape(X.shape)
         y_scaled = y_scaler.fit_transform(y)
 
     except Exception as e:
