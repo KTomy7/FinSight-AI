@@ -4,14 +4,12 @@ from sklearn.preprocessing import MinMaxScaler
 from finsight.core.stock_service import fetch_stock_data
 from finsight.core.features import create_lag_features
 from finsight.core.data_preprocessing import scale_data, split_data
+from finsight.helpers.helper import get_preprocessing_settings
 
 def prepare_data_for_prediction(
     ticker: str,
-    window: int = 5,
-    period: str = "1y",
-    interval: str = "1d",
-    test_size: float = 0.2,
-    shuffle: bool = False
+    period: str = None,
+    interval: str = None,
 ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, MinMaxScaler, MinMaxScaler]:
     """
     Prepare stock data for prediction.
@@ -20,17 +18,10 @@ def prepare_data_for_prediction(
     ----------
     ticker : str
         Stock ticker symbol to fetch data for.
-    window : int
-        Number of previous time steps to use as features for the current time step.
-        Must be between 1 and len(df)-1.
     period : str
         Time period for which to fetch stock data (e.g., "1y", "6mo").
     interval : str
         Time interval for the stock data (e.g., "1d", "1h").
-    test_size : float
-        Proportion of the dataset to include in the test split.
-    shuffle : bool
-        Whether to shuffle the data before splitting.
 
     Returns
     -------
@@ -44,6 +35,11 @@ def prepare_data_for_prediction(
         - y_scaler: Scaler for target variable.
     """
     try:
+        # Load default settings from config
+        preprocessing_settings = get_preprocessing_settings()
+        window = preprocessing_settings.get("lag_window")
+        test_size = preprocessing_settings.get("test_size")
+        shuffle = preprocessing_settings.get("shuffle")
 
         df = fetch_stock_data(ticker, period=period, interval=interval)
         X, y = create_lag_features(df, window)

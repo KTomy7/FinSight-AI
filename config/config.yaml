@@ -1,0 +1,39 @@
+# ====================================
+# Stock Data Settings
+# ====================================
+stock_data:
+  default_symbol: "AAPL"
+  default_period: "1y"     # e.g., "6mo", "1y", "5y", "max"
+  default_interval: "1d"   # e.g., "1d", "1wk", "1mo"
+
+# ====================================
+# Preprocessing Settings
+# ====================================
+preprocessing:
+  lag_window: 5           # Number of lag days for features
+  test_size: 0.2          # Proportion of data for testing
+  shuffle: false          # Whether to shuffle data before splitting
+
+# ====================================
+# Model Training
+# ====================================
+#training:
+#  models_dir: "src/finsight/models"
+#  random_seed: 42
+#  epochs: 50
+#  batch_size: 32
+
+# ====================================
+# Paths
+# ====================================
+#paths:
+#  raw_data_dir: "data/raw"
+#  processed_data_dir: "data/processed"
+#  logs_dir: "logs"
+
+# ====================================
+# Logging
+# ====================================
+#logging:
+#  level: "INFO"     # DEBUG, INFO, WARNING, ERROR
+#  file: "logs/src.log"

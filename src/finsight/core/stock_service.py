@@ -1,3 +1,5 @@
+import pandas as pd
+from typing import Dict, Any
 from finsight.core.data import fetch_stock_data, fetch_stock_summary
 
 class StockDataService:

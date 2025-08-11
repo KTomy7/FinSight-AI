@@ -11,7 +11,7 @@ def fetch_stock_data(ticker: str, period: str = "1y", interval: str = "1d") -> p
     ticker : str
         Stock ticker symbol (e.g., "AAPL" for Apple Inc.).
     period : str
-        The period for which to fetch data (e.g., "1y" for one year
+        The period for which to fetch data (e.g., "1y" for one year)
     interval : str
         The interval for the data (e.g., "1d" for daily data).
 

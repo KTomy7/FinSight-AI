@@ -52,8 +52,8 @@ def scale_data(
 def split_data(
     X: npt.NDArray,
     y: npt.NDArray,
-    test_size: float = 0.2,
-    shuffle: bool = False
+    test_size: float,
+    shuffle: bool
 ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
     """
     Splits the data into training and testing sets.

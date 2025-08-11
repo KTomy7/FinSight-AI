@@ -3,7 +3,7 @@ import numpy as np
 from numpy import typing as npt
 from typing import Tuple
 
-def create_lag_features(df: pd.DataFrame, window: int = 5) -> Tuple[npt.NDArray, npt.NDArray]:
+def create_lag_features(df: pd.DataFrame, window: int) -> Tuple[npt.NDArray, npt.NDArray]:
     """
     Creates lag features for stock price prediction.
 
