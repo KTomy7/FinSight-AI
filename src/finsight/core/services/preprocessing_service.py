@@ -2,7 +2,7 @@ import numpy.typing as npt
 from typing import Tuple
 from sklearn.preprocessing import MinMaxScaler
 from finsight.core.services.stock_service import fetch_stock_data
-from finsight.core.features import create_lag_features
+from finsight.core.feature_engineering import create_lag_features
 from finsight.core.data_preprocessing import scale_data, split_data
 from finsight.helpers.helper import get_preprocessing_settings
 
