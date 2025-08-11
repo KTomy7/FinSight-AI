@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from numpy import typing as npt
+import numpy.typing as npt
 from typing import Tuple
 
 def create_lag_features(df: pd.DataFrame, window: int) -> Tuple[npt.NDArray, npt.NDArray]:
@@ -34,8 +34,6 @@ def create_lag_features(df: pd.DataFrame, window: int) -> Tuple[npt.NDArray, npt
         df['Close_scaled'] = np.zeros_like(close_values)
     else:
         df['Close_scaled'] = (close_values - close_min) / (close_max - close_min)
-
-    df['Close_scaled'] = (df['Close'] - df['Close'].min()) / (df['Close'].max() - df['Close'].min())
 
     X, y = [], []
     scaled_values = df['Close_scaled'].values
