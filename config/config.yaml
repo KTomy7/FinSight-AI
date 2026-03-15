@@ -15,6 +15,26 @@ preprocessing:
   shuffle: false          # Whether to shuffle data before splitting
 
 # ====================================
+# Cache Settings
+# ====================================
+cache:
+  resource_ttl_seconds: 3600
+  data_ttl_seconds: 900
+
+# ====================================
+# Model Defaults (UI + app defaults)
+# ====================================
+model_defaults:
+  options:
+    - "Linear Regression"
+    - "Random Forest"
+    - "LSTM (Neural Network)"
+  default_model: "Linear Regression"
+  horizon_min: 7
+  horizon_max: 90
+  default_horizon: 30
+
+# ====================================
 # Model Training
 # ====================================
 #training:

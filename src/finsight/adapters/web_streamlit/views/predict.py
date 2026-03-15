@@ -5,17 +5,17 @@ from finsight.application.use_cases.fetch_market_data import (
     FetchMarketData,
     FetchMarketDataRequest,
 )
-from finsight.infrastructure.market_data.yfinance_provider import YFinanceMarketDataProvider
+from finsight.config.settings import get_settings
+from finsight.bootstrap.container import build_container
 
 
-@st.cache_resource
+_SETTINGS = get_settings()
+
+
+@st.cache_resource(ttl=_SETTINGS.cache.resource_ttl_seconds)
 def _fetch_market_data_uc() -> FetchMarketData:
-    # Cache provider + use-case across Streamlit reruns.
-    return FetchMarketData(
-        YFinanceMarketDataProvider(),
-        default_period="5y",
-        default_interval="1d",
-    )
+    # Use the composition root so adapters do not wire concrete infra directly.
+    return build_container().fetch_market_data
 
 
 def render():
@@ -32,17 +32,22 @@ def render():
     with col1:
         ticker = st.selectbox("Choose a stock ticker", ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NFLX"])
 
+    model_defaults = _SETTINGS.model_defaults
+
+    # TODO: model_choice is not used
     with col2:
         model_choice = st.selectbox(
             "Choose a prediction model",
-            ["Linear Regression", "Random Forest", "LSTM (Neural Network)"],
+            list(model_defaults.options),
+            index=list(model_defaults.options).index(model_defaults.default_model),
         )
 
+    # TODO: horizon is not used
     horizon = st.slider(
         "Prediction horizon (in days)",
-        min_value=7,
-        max_value=90,
-        value=30,
+        min_value=model_defaults.horizon_min,
+        max_value=model_defaults.horizon_max,
+        value=model_defaults.default_horizon,
         help="How far into the future you want the model to forecast stock prices.",
     )
 
@@ -76,4 +81,3 @@ def render():
 
         except Exception as e:
             st.error(f"Failed to fetch data: {e}")
-
