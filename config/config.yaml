@@ -26,10 +26,10 @@ cache:
 # ====================================
 model_defaults:
   options:
-    - "Linear Regression"
-    - "Random Forest"
-    - "LSTM (Neural Network)"
-  default_model: "Linear Regression"
+    - "x model"
+    - "y model"
+    - "z model"
+  default_model: "x model"
   horizon_min: 7
   horizon_max: 90
   default_horizon: 30
