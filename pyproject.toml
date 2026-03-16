@@ -29,6 +29,9 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = ["finsight*"]
 
+[tool.setuptools.package-data]
+"finsight" = ["assets/*", "assets/**/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
