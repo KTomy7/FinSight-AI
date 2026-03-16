@@ -3,8 +3,8 @@
 # ====================================
 stock_data:
   default_symbol: "AAPL"
-  default_period: "1y"     # e.g., "6mo", "1y", "5y", "max"
-  default_interval: "1d"   # e.g., "1d", "1wk", "1mo"
+  default_lookback_days: 365   # Number of calendar days to look back when no start_date is supplied
+  default_interval: "1d"       # e.g., "1d", "1wk", "1mo"
 
 # ====================================
 # Preprocessing Settings

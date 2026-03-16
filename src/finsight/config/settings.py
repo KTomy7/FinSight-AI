@@ -11,7 +11,7 @@ import yaml
 @dataclass(frozen=True, slots=True)
 class StockDataSettings:
     default_symbol: str = "AAPL"
-    default_period: str = "1y"
+    default_lookback_days: int = 365
     default_interval: str = "1d"
 
 
@@ -129,7 +129,7 @@ def get_settings(config_path: Path | None = None) -> Settings:
 
     stock_settings = StockDataSettings(
         default_symbol=_as_str(stock_raw.get("default_symbol"), "AAPL"),
-        default_period=_as_str(stock_raw.get("default_period"), "1y"),
+        default_lookback_days=_as_int(stock_raw.get("default_lookback_days"), 365, minimum=1),
         default_interval=_as_str(stock_raw.get("default_interval"), "1d"),
     )
 
