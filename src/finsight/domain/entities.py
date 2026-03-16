@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping, TYPE_CHECKING
 
-from finsight.domain.value_objects import Interval, Period, Ticker
+from finsight.domain.value_objects import DateRange, Interval, Ticker
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
@@ -18,7 +18,7 @@ class OHLCVSeries:
     """
 
     ticker: Ticker
-    period: Period
+    date_range: DateRange
     interval: Interval
     df: "pd.DataFrame"
 

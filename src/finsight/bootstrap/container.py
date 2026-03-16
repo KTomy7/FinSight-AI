@@ -23,7 +23,7 @@ def build_container() -> AppContainer:
     market_data_provider = YFinanceMarketDataProvider()
     fetch_market_data = FetchMarketData(
         market_data=market_data_provider,
-        default_period=settings.stock_data.default_period,
+        default_lookback_days=settings.stock_data.default_lookback_days,
         default_interval=settings.stock_data.default_interval,
     )
 
