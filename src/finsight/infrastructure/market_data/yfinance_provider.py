@@ -26,6 +26,10 @@ class YFinanceMarketDataProvider(MarketDataPort):
         # Ensure consistent DataFrame structure
         df = df.dropna().reset_index()
 
+        # Normalize time index column name (e.g., yfinance uses 'Datetime' for intraday data)
+        if "Date" not in df.columns and "Datetime" in df.columns:
+            df = df.rename(columns={"Datetime": "Date"})
+
         required_columns = ["Date", "Open", "High", "Low", "Close", "Volume"]
         missing = [col for col in required_columns if col not in df.columns]
         if missing:
