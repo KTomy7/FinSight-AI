@@ -1,13 +1,5 @@
 from __future__ import annotations
-import sys
 import streamlit as st
-from pathlib import Path
-
-# Allow `streamlit run src/finsight/adapters/web_streamlit/app.py` without needing
-# to manually set PYTHONPATH=src.
-SRC_DIR = Path(__file__).resolve().parents[3]
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
 
 from finsight.adapters.web_streamlit.views import render_layout, PAGE_HANDLERS
 
