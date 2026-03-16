@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finsight-ai"
+version = "0.1.0"
+description = "FinSight-AI stock analysis and forecasting"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "streamlit",
+  "streamlit-option-menu",
+  "pandas",
+  "matplotlib",
+  "yfinance",
+  "PyYAML"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["finsight*"]
+
+[tool.setuptools.package-data]
+"finsight" = ["assets/*", "assets/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
