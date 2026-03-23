@@ -76,6 +76,8 @@ def _rolling_std(series: pd.Series, window: int) -> pd.Series:
 
 def add_features(panel: pd.DataFrame) -> pd.DataFrame:
     df = panel.copy()
+    df = df.sort_values(["ticker", "date"], kind="mergesort").reset_index(drop=True)
+
     by_ticker_close = df.groupby("ticker", sort=False)["close"]
     by_ticker_volume = df.groupby("ticker", sort=False)["volume"]
 
@@ -100,13 +102,15 @@ def add_features(panel: pd.DataFrame) -> pd.DataFrame:
 
     vol_mean_20 = by_ticker_volume.transform(_rolling_mean, window=20)
     vol_std_20 = by_ticker_volume.transform(_rolling_std, window=20)
-    df["volume_z20"] = (df["volume"] - vol_mean_20) / vol_std_20
+    denom = vol_std_20.where(vol_std_20 != 0)
+    df["volume_z20"] = (df["volume"] - vol_mean_20) / denom
 
     return df
 
 
 def add_target(panel: pd.DataFrame) -> pd.DataFrame:
     df = panel.copy()
+    df = df.sort_values(["ticker", "date"], kind="mergesort").reset_index(drop=True)
     next_close = df.groupby("ticker", sort=False)["close"].shift(-1)
     df["target_ret_1d"] = (next_close / df["close"]) - 1.0
     return df

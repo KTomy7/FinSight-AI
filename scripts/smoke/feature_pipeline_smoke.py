@@ -12,8 +12,6 @@ from finsight.infrastructure.features.feature_pipeline import (
     FEATURE_COLUMNS,
     REQUIRED_PANEL_COLUMNS,
     TARGET_COLUMNS,
-    add_features,
-    add_target,
     build_feature_dataset,
     to_panel_df,
 )
