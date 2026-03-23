@@ -19,7 +19,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest"
+  "pytest",
+  "pytest-cov",
 ]
 
 [tool.setuptools]
@@ -35,4 +36,21 @@ include = ["finsight*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-q"
+addopts = "-q --cov=src/finsight --cov-report=term-missing"
+
+[tool.coverage.run]
+branch = true
+source = ["src/finsight"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 50
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
