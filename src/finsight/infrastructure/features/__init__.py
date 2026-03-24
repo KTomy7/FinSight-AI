@@ -8,6 +8,7 @@ from finsight.infrastructure.features.feature_pipeline import (
     finalize_feature_frame,
     to_panel_df,
 )
+from finsight.infrastructure.features.policies import TimeSplitPolicy
 
 __all__ = [
     "REQUIRED_PANEL_COLUMNS",
@@ -18,5 +19,6 @@ __all__ = [
     "add_target",
     "finalize_feature_frame",
     "build_feature_dataset",
+    "TimeSplitPolicy",
 ]
 
