@@ -26,6 +26,11 @@ class TimeSplitPolicy:
         object.__setattr__(self, "_cutoff_ts", pd.Timestamp(cutoff))
 
     def split_frame(self, df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+        if df.empty:
+            raise ValueError(
+                "Input DataFrame is empty. Cannot perform time split on an empty dataset."
+            )
+
         if self.date_col not in df.columns:
             raise ValueError(
                 f"Missing required date column '{self.date_col}'. "
@@ -54,8 +59,17 @@ class TimeSplitPolicy:
         test_df = frame.loc[test_mask].copy()
 
         if train_df.empty or test_df.empty:
-            min_date = parsed_dates.min().date().isoformat()
-            max_date = parsed_dates.max().date().isoformat()
+            min_ts = parsed_dates.min()
+            max_ts = parsed_dates.max()
+            # min/max should never be NaT here (invalid dates were already checked),
+            # but handle defensively to provide clear error message.
+            if pd.isna(min_ts) or pd.isna(max_ts):
+                raise ValueError(
+                    f"Time split produced an empty partition and dataset has no valid dates. "
+                    f"cutoff_date={self.cutoff_date.isoformat()}."
+                )
+            min_date = min_ts.date().isoformat()
+            max_date = max_ts.date().isoformat()
             raise ValueError(
                 "Time split produced an empty partition. "
                 f"cutoff_date={self.cutoff_date.isoformat()}, "
