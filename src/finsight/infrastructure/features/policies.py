@@ -8,14 +8,21 @@ import pandas as pd
 
 @dataclass(frozen=True, slots=True)
 class TimeSplitPolicy:
-    cutoff_date: date | str
+    cutoff_date: date = field(init=False)
     date_col: str = "date"
     inclusive_test: bool = True
     _cutoff_ts: pd.Timestamp = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        cutoff = self._normalize_cutoff(self.cutoff_date)
+    def __init__(
+        self,
+        cutoff_date: date | datetime | str,
+        date_col: str = "date",
+        inclusive_test: bool = True,
+    ) -> None:
+        cutoff = self._normalize_cutoff(cutoff_date)
         object.__setattr__(self, "cutoff_date", cutoff)
+        object.__setattr__(self, "date_col", date_col)
+        object.__setattr__(self, "inclusive_test", inclusive_test)
         object.__setattr__(self, "_cutoff_ts", pd.Timestamp(cutoff))
 
     def split_frame(self, df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -36,8 +43,12 @@ class TimeSplitPolicy:
         frame = df.copy()
         frame[self.date_col] = parsed_dates
 
-        train_mask = parsed_dates < self._cutoff_ts
-        test_mask = parsed_dates >= self._cutoff_ts if self.inclusive_test else parsed_dates > self._cutoff_ts
+        if self.inclusive_test:
+            train_mask = parsed_dates < self._cutoff_ts
+            test_mask = parsed_dates >= self._cutoff_ts
+        else:
+            train_mask = parsed_dates <= self._cutoff_ts
+            test_mask = parsed_dates > self._cutoff_ts
 
         train_df = frame.loc[train_mask].copy()
         test_df = frame.loc[test_mask].copy()
@@ -52,13 +63,13 @@ class TimeSplitPolicy:
             )
 
         sort_cols = ["ticker", self.date_col] if {"ticker", self.date_col}.issubset(frame.columns) else [self.date_col]
-        train_df = train_df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
-        test_df = test_df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
+        train_df = train_df.sort_values(sort_cols, kind="mergesort").reset_index(drop=True)
+        test_df = test_df.sort_values(sort_cols, kind="mergesort").reset_index(drop=True)
 
         return train_df, test_df
 
     @staticmethod
-    def _normalize_cutoff(cutoff_date: date | str) -> date:
+    def _normalize_cutoff(cutoff_date: date | datetime | str) -> date:
         if isinstance(cutoff_date, datetime):
             return cutoff_date.date()
         if isinstance(cutoff_date, date):
@@ -70,5 +81,5 @@ class TimeSplitPolicy:
                 raise ValueError(
                     "cutoff_date string must be ISO format YYYY-MM-DD"
                 ) from exc
-        raise TypeError("cutoff_date must be a datetime.date or ISO string")
+        raise TypeError("cutoff_date must be a datetime.date, datetime.datetime, or ISO string")
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from datetime import date, datetime
+
 import pandas as pd
 import pytest
 
-from finsight.application.policies import TimeSplitPolicy
+from finsight.infrastructure.features import TimeSplitPolicy
 
 
 def _to_iso_dates(series: pd.Series) -> list[str]:
@@ -29,6 +31,16 @@ def test_basic_split() -> None:
     assert set(test_df.columns) == set(df.columns)
 
 
+def test_cutoff_date_normalizes_to_date_for_supported_input_types() -> None:
+    from_str = TimeSplitPolicy(cutoff_date="2024-01-03")
+    from_date = TimeSplitPolicy(cutoff_date=date(2024, 1, 3))
+    from_datetime = TimeSplitPolicy(cutoff_date=datetime(2024, 1, 3, 15, 30, 0))
+
+    assert from_str.cutoff_date == date(2024, 1, 3)
+    assert from_date.cutoff_date == date(2024, 1, 3)
+    assert from_datetime.cutoff_date == date(2024, 1, 3)
+
+
 def test_boundary_goes_to_test() -> None:
     df = pd.DataFrame(
         {
@@ -46,7 +58,7 @@ def test_boundary_goes_to_test() -> None:
     assert _to_iso_dates(test_df["date"]) == ["2024-01-02", "2024-01-03"]
 
 
-def test_boundary_excluded_when_inclusive_test_false() -> None:
+def test_boundary_goes_to_train_when_inclusive_test_false() -> None:
     df = pd.DataFrame(
         {
             "date": ["2024-01-01", "2024-01-02", "2024-01-03"],
@@ -59,9 +71,9 @@ def test_boundary_excluded_when_inclusive_test_false() -> None:
     policy = TimeSplitPolicy(cutoff_date="2024-01-02", inclusive_test=False)
     train_df, test_df = policy.split_frame(df)
 
-    assert _to_iso_dates(train_df["date"]) == ["2024-01-01"]
+    assert _to_iso_dates(train_df["date"]) == ["2024-01-01", "2024-01-02"]
     assert _to_iso_dates(test_df["date"]) == ["2024-01-03"]
-    assert "2024-01-02" not in _to_iso_dates(train_df["date"])
+    assert "2024-01-02" in _to_iso_dates(train_df["date"])
     assert "2024-01-02" not in _to_iso_dates(test_df["date"])
 
 

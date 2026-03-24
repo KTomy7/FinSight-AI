@@ -4,7 +4,7 @@ import argparse
 
 import pandas as pd
 
-from finsight.application.policies import TimeSplitPolicy
+from finsight.infrastructure.features import TimeSplitPolicy
 
 
 def _build_demo_frame() -> pd.DataFrame:
@@ -49,6 +49,8 @@ def _run_case(df: pd.DataFrame, cutoff: str, inclusive_test: bool) -> None:
 
     if inclusive_test and boundary not in test_dates:
         raise RuntimeError("Expected boundary date to be included in test when inclusive_test=True.")
+    if not inclusive_test and boundary not in train_dates:
+        raise RuntimeError("Expected boundary date to be included in train when inclusive_test=False.")
     if not inclusive_test and boundary in test_dates:
         raise RuntimeError("Expected boundary date to be excluded from test when inclusive_test=False.")
 
@@ -76,5 +78,6 @@ if __name__ == "__main__":
     pd.set_option("display.width", 120)
     pd.set_option("display.max_columns", 20)
     main()
+
 
 
