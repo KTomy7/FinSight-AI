@@ -31,6 +31,7 @@ def build_container() -> AppContainer:
     train_model = TrainModel(
         fetch_market_data=fetch_market_data,
         training_tickers=settings.training.training_tickers,
+        default_interval=settings.stock_data.default_interval,
     )
 
     return AppContainer(fetch_market_data=fetch_market_data, train_model=train_model)

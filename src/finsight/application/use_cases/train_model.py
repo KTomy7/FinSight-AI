@@ -21,7 +21,7 @@ class TrainModelRequest:
     cutoff_date: str
     years: int = 2
     end: str | None = None
-    interval: str = "1d"
+    interval: str | None = None
     model_types: list[str] = field(default_factory=lambda: ["naive_zero", "naive_mean"])
     artifacts_dir: str = "artifacts/runs"
 
@@ -135,9 +135,15 @@ def evaluate_naive_models(
 
 
 class TrainModel:
-    def __init__(self, fetch_market_data: FetchMarketData, training_tickers: tuple[str, ...] | list[str]) -> None:
+    def __init__(
+        self,
+        fetch_market_data: FetchMarketData,
+        training_tickers: tuple[str, ...] | list[str],
+        default_interval: str = "1d",
+    ) -> None:
         self._fetch_market_data = fetch_market_data
         self._training_tickers = tuple(training_tickers)
+        self._default_interval = default_interval
 
     def execute(self, request: TrainModelRequest) -> TrainModelResponse:
         if request.years <= 0:
@@ -145,6 +151,7 @@ class TrainModel:
 
         tickers = _get_training_tickers(self._training_tickers)
         model_types = _validate_model_types(request.model_types)
+        resolved_interval = request.interval or self._default_interval
 
         end_date = _parse_iso_date(request.end) if request.end else date.today()
         lookback_days = (request.years * 365) - 1
@@ -157,7 +164,7 @@ class TrainModel:
                     ticker=ticker,
                     start_date=start_date.isoformat(),
                     end_date=end_date.isoformat(),
-                    interval=request.interval,
+                    interval=resolved_interval,
                     include_summary=False,
                 )
             )
@@ -206,7 +213,7 @@ class TrainModel:
                 "created_at_utc": created_at_utc,
                 "model_type": model_type,
                 "tickers": tickers,
-                "interval": request.interval,
+                "interval": resolved_interval,
                 "years": int(request.years),
                 "end": request.end or end_date.isoformat(),
                 "cutoff_date": request.cutoff_date,

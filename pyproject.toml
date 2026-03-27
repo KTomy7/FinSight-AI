@@ -23,6 +23,9 @@ dev = [
   "pytest-cov",
 ]
 
+[project.scripts]
+finsight = "finsight.cli.main:main"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

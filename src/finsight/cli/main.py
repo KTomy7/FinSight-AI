@@ -19,7 +19,6 @@ def _build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--years", type=int, default=2, help="Lookback window in years")
     train_parser.add_argument("--end", default=None, help="Inclusive end date (YYYY-MM-DD)")
     train_parser.add_argument("--cutoff", required=True, help="Global time split cutoff date (YYYY-MM-DD)")
-    train_parser.add_argument("--interval", default="1d", help="Market data interval")
     train_parser.add_argument(
         "--model-types",
         nargs="+",
@@ -41,7 +40,6 @@ def _run_train(args: argparse.Namespace) -> int:
         TrainModelRequest(
             years=args.years,
             end=args.end,
-            interval=args.interval,
             cutoff_date=args.cutoff,
             model_types=args.model_types,
             artifacts_dir=args.artifacts_dir,

@@ -18,3 +18,11 @@ def test_train_parser_rejects_tickers_arg() -> None:
     with pytest.raises(SystemExit):
         parser.parse_args(["train", "--cutoff", "2025-06-01", "--tickers", "AAPL", "MSFT"])
 
+
+def test_train_parser_rejects_interval_arg() -> None:
+    parser = _build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["train", "--cutoff", "2025-06-01", "--interval", "1d"])
+
+
