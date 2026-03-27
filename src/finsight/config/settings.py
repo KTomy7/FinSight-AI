@@ -42,11 +42,17 @@ class ModelDefaults:
 
 
 @dataclass(frozen=True, slots=True)
+class TrainingSettings:
+    training_tickers: tuple[str, ...] = ("AAPL", "JPM", "XOM", "KO", "TSLA")
+
+
+@dataclass(frozen=True, slots=True)
 class Settings:
     stock_data: StockDataSettings = StockDataSettings()
     preprocessing: PreprocessingSettings = PreprocessingSettings()
     cache: CacheSettings = CacheSettings()
     model_defaults: ModelDefaults = ModelDefaults()
+    training: TrainingSettings = TrainingSettings()
 
 
 def _default_config_path() -> Path:
@@ -126,6 +132,7 @@ def get_settings(config_path: Path | None = None) -> Settings:
     preprocess_raw = _as_mapping(raw.get("preprocessing"))
     cache_raw = _as_mapping(raw.get("cache"))
     model_raw = _as_mapping(raw.get("model_defaults"))
+    training_raw = _as_mapping(raw.get("training"))
 
     stock_settings = StockDataSettings(
         default_symbol=_as_str(stock_raw.get("default_symbol"), "AAPL"),
@@ -168,11 +175,19 @@ def get_settings(config_path: Path | None = None) -> Settings:
         default_horizon=default_horizon,
     )
 
+    training_settings = TrainingSettings(
+        training_tickers=_as_tuple_of_str(
+            training_raw.get("training_tickers"),
+            ("AAPL", "JPM", "XOM", "KO", "TSLA"),
+        ),
+    )
+
     return Settings(
         stock_data=stock_settings,
         preprocessing=preprocessing_settings,
         cache=cache_settings,
         model_defaults=model_settings,
+        training=training_settings,
     )
 
 
