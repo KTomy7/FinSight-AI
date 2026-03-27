@@ -126,12 +126,18 @@ class TrainModel:
     def execute(self, request: TrainModelRequest) -> TrainModelResponse:
         if not request.tickers:
             raise ValueError("tickers must contain at least one symbol.")
+        def _parse_iso_date(iso_str: str) -> date:
+            try:
+                return date.fromisoformat(iso_str)
+            except ValueError as exc:
+                raise ValueError(f"Invalid ISO 8601 date for 'end': {iso_str!r}") from exc
+
+        if not request.tickers:
+            raise ValueError("tickers must contain at least one symbol.")
         if request.years <= 0:
             raise ValueError("years must be a positive integer.")
 
-        model_types = _validate_model_types(request.model_types)
-
-        end_date = date.fromisoformat(request.end) if request.end else date.today()
+        end_date = _parse_iso_date(request.end) if request.end else date.today()
         lookback_days = (request.years * 365) - 1
         start_date = end_date - timedelta(days=lookback_days)
 
