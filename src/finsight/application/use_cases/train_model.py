@@ -18,7 +18,6 @@ SUPPORTED_MODEL_TYPES = ("naive_zero", "naive_mean")
 
 @dataclass(frozen=True, slots=True)
 class TrainModelRequest:
-    tickers: list[str]
     cutoff_date: str
     years: int = 2
     end: str | None = None
@@ -63,6 +62,22 @@ def _frame_date_range(df: pd.DataFrame, *, date_col: str = "date") -> tuple[str,
     if pd.isna(min_ts) or pd.isna(max_ts):
         raise ValueError(f"DataFrame column '{date_col}' does not contain valid dates.")
     return min_ts.date().isoformat(), max_ts.date().isoformat()
+
+
+def _parse_iso_date(iso_str: str) -> date:
+    try:
+        return date.fromisoformat(iso_str)
+    except ValueError as exc:
+        raise ValueError(f"Invalid ISO 8601 date for 'end': {iso_str!r}") from exc
+
+
+def _get_training_tickers(training_tickers: tuple[str, ...] | list[str]) -> list[str]:
+    tickers = [ticker for ticker in (str(raw).strip().upper() for raw in training_tickers) if ticker]
+    if not tickers:
+        raise ValueError("Configured training tickers must contain at least one symbol.")
+    if len(set(tickers)) != len(tickers):
+        raise ValueError("Configured training tickers must not contain duplicates.")
+    return tickers
 
 
 def evaluate_naive_models(
@@ -120,29 +135,23 @@ def evaluate_naive_models(
 
 
 class TrainModel:
-    def __init__(self, fetch_market_data: FetchMarketData) -> None:
+    def __init__(self, fetch_market_data: FetchMarketData, training_tickers: tuple[str, ...] | list[str]) -> None:
         self._fetch_market_data = fetch_market_data
+        self._training_tickers = tuple(training_tickers)
 
     def execute(self, request: TrainModelRequest) -> TrainModelResponse:
-        if not request.tickers:
-            raise ValueError("tickers must contain at least one symbol.")
-        def _parse_iso_date(iso_str: str) -> date:
-            try:
-                return date.fromisoformat(iso_str)
-            except ValueError as exc:
-                raise ValueError(f"Invalid ISO 8601 date for 'end': {iso_str!r}") from exc
-
-        if not request.tickers:
-            raise ValueError("tickers must contain at least one symbol.")
         if request.years <= 0:
             raise ValueError("years must be a positive integer.")
+
+        tickers = _get_training_tickers(self._training_tickers)
+        model_types = _validate_model_types(request.model_types)
 
         end_date = _parse_iso_date(request.end) if request.end else date.today()
         lookback_days = (request.years * 365) - 1
         start_date = end_date - timedelta(days=lookback_days)
 
         series_list = []
-        for ticker in request.tickers:
+        for ticker in tickers:
             result = self._fetch_market_data.execute(
                 FetchMarketDataRequest(
                     ticker=ticker,
@@ -196,7 +205,7 @@ class TrainModel:
                 "run_id": run_dir.name,
                 "created_at_utc": created_at_utc,
                 "model_type": model_type,
-                "tickers": request.tickers,
+                "tickers": tickers,
                 "interval": request.interval,
                 "years": int(request.years),
                 "end": request.end or end_date.isoformat(),

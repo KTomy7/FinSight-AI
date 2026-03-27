@@ -4,14 +4,18 @@ import argparse
 
 from finsight.application.use_cases.train_model import TrainModelRequest
 from finsight.bootstrap.container import build_container
+from finsight.config.settings import get_settings
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="finsight")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    train_parser = subparsers.add_parser("train", help="Train/evaluate baseline models")
-    train_parser.add_argument("--tickers", nargs="+", required=True, help="Ticker symbols")
+    tickers = ", ".join(get_settings().training.training_tickers)
+    train_parser = subparsers.add_parser(
+        "train",
+        help=f"Train/evaluate baseline models on fixed tickers: {tickers}",
+    )
     train_parser.add_argument("--years", type=int, default=2, help="Lookback window in years")
     train_parser.add_argument("--end", default=None, help="Inclusive end date (YYYY-MM-DD)")
     train_parser.add_argument("--cutoff", required=True, help="Global time split cutoff date (YYYY-MM-DD)")
@@ -35,7 +39,6 @@ def _run_train(args: argparse.Namespace) -> int:
     container = build_container()
     response = container.train_model.execute(
         TrainModelRequest(
-            tickers=args.tickers,
             years=args.years,
             end=args.end,
             interval=args.interval,

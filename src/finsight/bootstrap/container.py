@@ -28,7 +28,10 @@ def build_container() -> AppContainer:
         default_lookback_days=settings.stock_data.default_lookback_days,
         default_interval=settings.stock_data.default_interval,
     )
-    train_model = TrainModel(fetch_market_data=fetch_market_data)
+    train_model = TrainModel(
+        fetch_market_data=fetch_market_data,
+        training_tickers=settings.training.training_tickers,
+    )
 
     return AppContainer(fetch_market_data=fetch_market_data, train_model=train_model)
 

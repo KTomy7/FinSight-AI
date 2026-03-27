@@ -37,11 +37,13 @@ model_defaults:
 # ====================================
 # Model Training
 # ====================================
-#training:
-#  models_dir: "src/finsight/models"
-#  random_seed: 42
-#  epochs: 50
-#  batch_size: 32
+training:
+  training_tickers:
+    - "AAPL"  # Tech
+    - "JPM"   # Finance
+    - "XOM"   # Energy
+    - "KO"    # Consumer
+    - "TSLA"  # Growth
 
 # ====================================
 # Paths
