@@ -245,15 +245,20 @@ class TrainModel:
 
     @staticmethod
     def _create_unique_run_dir(base_path: Path) -> Path:
-        if not base_path.exists():
+        # Try to create the base directory first. If it already exists, fall back to
+        # creating a uniquely suffixed directory in a race-safe way.
+        try:
             base_path.mkdir(parents=True, exist_ok=False)
             return base_path
+        except FileExistsError:
+            pass
 
         suffix = 1
         while True:
             candidate = Path(f"{base_path}_{suffix}")
-            if not candidate.exists():
+            try:
                 candidate.mkdir(parents=True, exist_ok=False)
                 return candidate
-            suffix += 1
+            except FileExistsError:
+                suffix += 1
 
