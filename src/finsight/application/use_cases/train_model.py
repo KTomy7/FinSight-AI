@@ -33,10 +33,6 @@ class TrainModelResponse:
     metrics: dict[str, dict[str, float | int | str]]
 
 
-def _sign(values: np.ndarray) -> np.ndarray:
-    return np.where(values > 0.0, 1, np.where(values < 0.0, -1, 0))
-
-
 def _frame_date_range(df: pd.DataFrame, *, date_col: str = "date") -> tuple[str, str]:
     parsed = pd.to_datetime(df[date_col], errors="coerce")
     min_ts = parsed.min()
