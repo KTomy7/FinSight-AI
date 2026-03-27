@@ -70,3 +70,10 @@ def test_evaluate_naive_models_rejects_unsupported_model_type() -> None:
     with pytest.raises(ValueError, match="Unsupported model type"):
         evaluate_naive_models(train_df, test_df, ["naive_last"])
 
+
+def test_evaluate_naive_models_rejects_duplicate_model_types() -> None:
+    features_df = _synthetic_feature_frame()
+    train_df, test_df = TimeSplitPolicy("2024-01-04").split_frame(features_df)
+
+    with pytest.raises(ValueError, match="model_types must be unique"):
+        evaluate_naive_models(train_df, test_df, ["naive_zero", "naive_zero"])

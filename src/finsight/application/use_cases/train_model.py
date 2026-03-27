@@ -33,6 +33,29 @@ class TrainModelResponse:
     metrics: dict[str, dict[str, float | int | str]]
 
 
+def _validate_model_types(model_types: list[str]) -> list[str]:
+    if not model_types:
+        raise ValueError("model_types must contain at least one model type.")
+
+    unsupported = [model_type for model_type in model_types if model_type not in SUPPORTED_MODEL_TYPES]
+    if unsupported:
+        raise ValueError(
+            f"Unsupported model type(s): {unsupported}. Supported model types: {SUPPORTED_MODEL_TYPES}."
+        )
+
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for model_type in model_types:
+        if model_type in seen and model_type not in duplicates:
+            duplicates.append(model_type)
+        seen.add(model_type)
+
+    if duplicates:
+        raise ValueError(f"model_types must be unique. Duplicate values: {duplicates}.")
+
+    return model_types
+
+
 def _frame_date_range(df: pd.DataFrame, *, date_col: str = "date") -> tuple[str, str]:
     parsed = pd.to_datetime(df[date_col], errors="coerce")
     min_ts = parsed.min()
@@ -53,6 +76,8 @@ def evaluate_naive_models(
     if train_df.empty or test_df.empty:
         raise ValueError("train_df and test_df must be non-empty for evaluation.")
 
+    validated_model_types = _validate_model_types(model_types)
+
     y_train = train_df[TARGET_COLUMN].to_numpy(dtype=float)
     y_test = test_df[TARGET_COLUMN].to_numpy(dtype=float)
 
@@ -61,12 +86,13 @@ def evaluate_naive_models(
 
     pred_cols = [col for col in ("date", "ticker") if col in test_df.columns]
 
-    for model_type in model_types:
+    for model_type in validated_model_types:
         if model_type == "naive_zero":
             y_pred = np.zeros_like(y_test, dtype=float)
         elif model_type == "naive_mean":
             y_pred = np.full_like(y_test, fill_value=float(np.mean(y_train)), dtype=float)
         else:
+            # Defensive branch: supported model types are validated before this loop.
             raise ValueError(
                 f"Unsupported model type '{model_type}'. Supported model types: {SUPPORTED_MODEL_TYPES}."
             )
@@ -103,6 +129,8 @@ class TrainModel:
         if request.years <= 0:
             raise ValueError("years must be a positive integer.")
 
+        model_types = _validate_model_types(request.model_types)
+
         end_date = date.fromisoformat(request.end) if request.end else date.today()
         lookback_days = (request.years * 365) - 1
         start_date = end_date - timedelta(days=lookback_days)
@@ -129,7 +157,7 @@ class TrainModel:
         )
         train_df, test_df = policy.split_frame(features_df)
 
-        model_metrics, predictions = evaluate_naive_models(train_df, test_df, request.model_types)
+        model_metrics, predictions = evaluate_naive_models(train_df, test_df, model_types)
 
         train_min_date, train_max_date = _frame_date_range(train_df)
         test_min_date, test_max_date = _frame_date_range(test_df)
@@ -144,7 +172,7 @@ class TrainModel:
         run_dirs: dict[str, str] = {}
         metrics: dict[str, dict[str, float | int | str]] = {}
 
-        for model_type in request.model_types:
+        for model_type in model_types:
             run_id = f"{run_prefix}__{model_type}"
             run_dir = self._create_unique_run_dir(artifact_root / run_id)
 
