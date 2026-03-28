@@ -14,7 +14,8 @@ Ship reliable, fast, deterministic tests for the FinSight-AI codebase and priori
 ## Project Context
 
 - Language and test runner: Python + `pytest`
-- Coverage tools: `pytest-cov` (respect thresholds from `pyproject.toml`)
+- Coverage tools: `pytest-cov`
+- Coverage policy: local/default runs use `pyproject.toml` `fail_under`; CI guardrails enforce non-regression and changed-lines coverage
 - UI framework: Streamlit
 - UI test API: `streamlit.testing` (prefer `streamlit.testing.v1.AppTest`)
 - ML/data stack: Pandas, scikit-learn style workflows
@@ -34,6 +35,8 @@ When asked to improve quality, follow this sequence:
 
 1. Run coverage:
    - `pytest -q --cov=src/finsight --cov-report=term-missing`
+   - In CI, generate XML and allow guardrails to decide pass/fail:
+     - `pytest --cov-fail-under=0 --cov-report=xml:coverage-<target>.xml`
 2. Identify missing lines and branches in changed or risky modules first.
 3. Add focused tests in the correct layer:
    - domain logic -> `tests/unit/domain/...`
@@ -42,6 +45,14 @@ When asked to improve quality, follow this sequence:
    - UI integration -> `tests/integration/...`
 4. Re-run tests and coverage until the new tests pass and coverage improves.
 5. Report residual risk if something cannot be tested.
+
+## CI Coverage Guardrails
+
+When evaluating PR quality, follow repository guardrails (not a fixed global fail-under gate in CI):
+
+- non-regression threshold: PR total coverage must not drop by more than `MAX_ALLOWED_DROP` vs `main`
+- changed-lines threshold: changed-line coverage must be `>= CHANGED_LINES_MIN`
+- use `pyproject.toml` `fail_under` as a local baseline and ratchet target, while CI uses the two guardrails above
 
 ## Streamlit UI Test Rules
 
