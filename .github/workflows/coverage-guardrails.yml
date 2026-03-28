@@ -45,11 +45,12 @@ jobs:
           python - <<'PY'
           import xml.etree.ElementTree as ET
           import os
+          from decimal import Decimal
 
           root = ET.parse("coverage-pr.xml").getroot()
-          pr_total = float(root.attrib["line-rate"]) * 100
+          pr_total = Decimal(root.attrib["line-rate"]) * Decimal("100")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"total={pr_total:.2f}\n")
+              fh.write(f"total={pr_total}\n")
           print(f"PR total coverage: {pr_total:.2f}%")
           PY
 
@@ -71,11 +72,12 @@ jobs:
           python - <<'PY'
           import xml.etree.ElementTree as ET
           import os
+          from decimal import Decimal
 
           root = ET.parse("coverage-main.xml").getroot()
-          main_total = float(root.attrib["line-rate"]) * 100
+          main_total = Decimal(root.attrib["line-rate"]) * Decimal("100")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"total={main_total:.2f}\n")
+              fh.write(f"total={main_total}\n")
           print(f"Main total coverage: {main_total:.2f}%")
           PY
           popd
@@ -92,17 +94,18 @@ jobs:
           python - <<'PY'
           import os
           import sys
+          from decimal import Decimal
 
-          pr_total = float(os.environ["PR_TOTAL"])
-          main_total = float(os.environ["MAIN_TOTAL"])
-          max_drop = float(os.environ["MAX_ALLOWED_DROP"])
+          pr_total = Decimal(os.environ["PR_TOTAL"])
+          main_total = Decimal(os.environ["MAIN_TOTAL"])
+          max_drop = Decimal(os.environ["MAX_ALLOWED_DROP"])
 
           drop = main_total - pr_total
           allowed_floor = main_total - max_drop
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"drop={drop:.2f}\n")
-              fh.write(f"allowed_floor={allowed_floor:.2f}\n")
+              fh.write(f"drop={drop}\n")
+              fh.write(f"allowed_floor={allowed_floor}\n")
 
           print(f"Main coverage: {main_total:.2f}%")
           print(f"PR coverage: {pr_total:.2f}%")
@@ -129,18 +132,18 @@ jobs:
           python - <<'PY'
           import os
           import re
-          import sys
+          from decimal import Decimal
 
           text = open("diff-cover.txt", "r", encoding="utf-8").read()
           matches = re.findall(r"Coverage:\s*([0-9]+(?:\.[0-9]+)?)%", text)
           if not matches:
               # No measured diff coverage usually means no relevant coverable lines changed.
-              changed_lines_coverage = 100.0
+              changed_lines_coverage = Decimal("100")
           else:
-              changed_lines_coverage = float(matches[-1])
+              changed_lines_coverage = Decimal(matches[-1])
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"coverage={changed_lines_coverage:.2f}\n")
+              fh.write(f"coverage={changed_lines_coverage}\n")
           print(f"Changed-lines coverage: {changed_lines_coverage:.2f}%")
           PY
 
@@ -153,9 +156,10 @@ jobs:
           python - <<'PY'
           import os
           import sys
+          from decimal import Decimal
 
-          changed = float(os.environ["CHANGED_LINES_COVERAGE"])
-          threshold = float(os.environ["CHANGED_LINES_MIN"])
+          changed = Decimal(os.environ["CHANGED_LINES_COVERAGE"])
+          threshold = Decimal(os.environ["CHANGED_LINES_MIN"])
 
           print(f"Changed-lines coverage: {changed:.2f}%")
           print(f"Required changed-lines coverage: {threshold:.2f}%")
@@ -171,7 +175,7 @@ jobs:
           PY
 
       - name: Post coverage summary to PR
-        if: always()
+        if: always()  && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         env:
           PR_TOTAL: ${{ steps.pr_coverage.outputs.total }}
@@ -185,12 +189,17 @@ jobs:
         with:
           script: |
             const marker = '<!-- coverage-guardrails -->';
-            const prTotal = process.env.PR_TOTAL || 'n/a';
-            const mainTotal = process.env.MAIN_TOTAL || 'n/a';
-            const drop = process.env.COVERAGE_DROP || 'n/a';
-            const allowed = process.env.ALLOWED_DROP || '0.2';
-            const changed = process.env.CHANGED_LINES_COVERAGE || 'n/a';
-            const changedMin = process.env.CHANGED_LINES_MIN || '80';
+            const formatPercent = (value, fallback = 'n/a') => {
+              const raw = value ?? fallback;
+              const n = Number.parseFloat(raw);
+              return Number.isFinite(n) ? n.toFixed(2) : raw;
+            };
+            const prTotal = formatPercent(process.env.PR_TOTAL, 'n/a');
+            const mainTotal = formatPercent(process.env.MAIN_TOTAL, 'n/a');
+            const drop = formatPercent(process.env.COVERAGE_DROP, 'n/a');
+            const allowed = formatPercent(process.env.ALLOWED_DROP, '0.2');
+            const changed = formatPercent(process.env.CHANGED_LINES_COVERAGE, 'n/a');
+            const changedMin = formatPercent(process.env.CHANGED_LINES_MIN, '80');
             const nonRegressionStatus = process.env.NON_REGRESSION_STATUS || 'n/a';
             const changedLinesStatus = process.env.CHANGED_LINES_STATUS || 'n/a';
 
