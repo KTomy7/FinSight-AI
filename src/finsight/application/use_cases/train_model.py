@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import pandas as pd
+
 from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
 from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
@@ -57,6 +59,41 @@ def _parse_iso_date(iso_str: str) -> date:
         raise ValueError(f"Invalid ISO 8601 date for 'end': {iso_str!r}") from exc
 
 
+def evaluate_naive_models(
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    model_types: list[str],
+    target_column: str = TARGET_COLUMN,
+) -> tuple[dict[str, dict[str, float]], dict[str, pd.DataFrame]]:
+    """Evaluate one or more naive baseline models and return metrics and predictions.
+
+    Returns a tuple of ``(metrics, predictions)`` where both dicts are keyed by
+    ``model_type``.  ``metrics[model_type]`` contains ``mae``, ``rmse``, and
+    ``direction_accuracy``.  ``predictions[model_type]`` is a DataFrame with
+    columns ``["date", "ticker", "y_true", "y_pred"]``.
+    """
+    _validate_model_types(model_types)
+
+    from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineModel  # lazy import to keep layer boundaries
+
+    model = NaiveBaselineModel()
+
+    metrics: dict[str, dict[str, float]] = {}
+    predictions: dict[str, pd.DataFrame] = {}
+
+    for model_type in model_types:
+        metric_values, preds = model.evaluate(
+            train_dataset=train_df,
+            test_dataset=test_df,
+            model_type=model_type,
+            target_column=target_column,
+        )
+        metrics[model_type] = dict(metric_values)
+        predictions[model_type] = preds
+
+    return metrics, predictions
+
+
 def _get_training_tickers(training_tickers: tuple[str, ...] | list[str]) -> list[str]:
     tickers = [ticker for ticker in (str(raw).strip().upper() for raw in training_tickers) if ticker]
     if not tickers:
@@ -71,12 +108,21 @@ class TrainModel:
     def __init__(
         self,
         fetch_market_data: FetchMarketData,
-        feature_store: FeatureStorePort,
-        model: ModelPort,
-        model_registry: ModelRegistryPort,
-        training_tickers: tuple[str, ...] | list[str],
+        feature_store: FeatureStorePort | None = None,
+        model: ModelPort | None = None,
+        model_registry: ModelRegistryPort | None = None,
+        training_tickers: tuple[str, ...] | list[str] = (),
         default_interval: str = "1d",
     ) -> None:
+        if feature_store is None:
+            from finsight.infrastructure.features.feature_store import PandasFeatureStore  # lazy import
+            feature_store = PandasFeatureStore()
+        if model is None:
+            from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineModel  # lazy import
+            model = NaiveBaselineModel()
+        if model_registry is None:
+            from finsight.infrastructure.persistence.file_model_registry import LocalFileModelRegistry  # lazy import
+            model_registry = LocalFileModelRegistry()
         self._fetch_market_data = fetch_market_data
         self._feature_store = feature_store
         self._model = model
