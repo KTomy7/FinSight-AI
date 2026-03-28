@@ -8,7 +8,6 @@ from finsight.application.use_cases.fetch_market_data import FetchMarketData, Fe
 from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
 TARGET_COLUMN = "target_ret_1d"
-SUPPORTED_MODEL_TYPES = ("naive_zero", "naive_mean")
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,12 +30,6 @@ def _validate_model_types(model_types: list[str]) -> list[str]:
     if not model_types:
         raise ValueError("model_types must contain at least one model type.")
 
-    unsupported = [model_type for model_type in model_types if model_type not in SUPPORTED_MODEL_TYPES]
-    if unsupported:
-        raise ValueError(
-            f"Unsupported model type(s): {unsupported}. Supported model types: {SUPPORTED_MODEL_TYPES}."
-        )
-
     seen: set[str] = set()
     duplicates: list[str] = []
     for model_type in model_types:
@@ -48,6 +41,14 @@ def _validate_model_types(model_types: list[str]) -> list[str]:
         raise ValueError(f"model_types must be unique. Duplicate values: {duplicates}.")
 
     return model_types
+
+
+def _validate_supported_model_types(model_types: list[str], supported_model_types: tuple[str, ...]) -> None:
+    unsupported = [model_type for model_type in model_types if model_type not in supported_model_types]
+    if unsupported:
+        raise ValueError(
+            f"Unsupported model type(s): {unsupported}. Supported model types: {supported_model_types}."
+        )
 
 
 def _parse_iso_date(iso_str: str) -> date:
@@ -90,6 +91,7 @@ class TrainModel:
 
         tickers = _get_training_tickers(self._training_tickers)
         model_types = _validate_model_types(request.model_types)
+        _validate_supported_model_types(model_types, self._model.supported_model_types())
         resolved_interval = request.interval or self._default_interval
 
         end_date = _parse_iso_date(request.end) if request.end else date.today()

@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from finsight.application.use_cases.train_model import _get_training_tickers, _parse_iso_date, _validate_model_types
+from finsight.application.use_cases.train_model import (
+    _get_training_tickers,
+    _parse_iso_date,
+    _validate_model_types,
+    _validate_supported_model_types,
+)
 from finsight.infrastructure.features import TimeSplitPolicy
 from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
 
@@ -87,6 +92,10 @@ def test_naive_baseline_model_rejects_unsupported_model_type() -> None:
         )
 
 
+def test_naive_baseline_model_reports_supported_model_types() -> None:
+    assert NaiveBaselineModel().supported_model_types() == ("naive_zero", "naive_mean")
+
+
 def test_validate_model_types_rejects_duplicates() -> None:
     with pytest.raises(ValueError, match="model_types must be unique"):
         _validate_model_types(["naive_zero", "naive_zero"])
@@ -95,6 +104,11 @@ def test_validate_model_types_rejects_duplicates() -> None:
 def test_validate_model_types_rejects_empty() -> None:
     with pytest.raises(ValueError, match="at least one model type"):
         _validate_model_types([])
+
+
+def test_validate_supported_model_types_rejects_unsupported() -> None:
+    with pytest.raises(ValueError, match=r"Unsupported model type\(s\)"):
+        _validate_supported_model_types(["naive_last"], ("naive_zero", "naive_mean"))
 
 
 def test_parse_iso_date_rejects_invalid_date() -> None:

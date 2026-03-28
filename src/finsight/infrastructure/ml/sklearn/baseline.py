@@ -61,6 +61,9 @@ class NaiveBaselineModel(ModelPort):
 
         return metrics, predictions.reset_index(drop=True)
 
+    def supported_model_types(self) -> tuple[str, ...]:
+        return SUPPORTED_MODEL_TYPES
+
     @staticmethod
     def _require_dataframe(dataset: object, *, arg_name: str) -> pd.DataFrame:
         if not isinstance(dataset, pd.DataFrame):

@@ -57,6 +57,9 @@ class ModelPort(Protocol):
     ) -> tuple[Mapping[str, float], object]:
         raise NotImplementedError
 
+    def supported_model_types(self) -> tuple[str, ...]:
+        raise NotImplementedError
+
 
 @runtime_checkable
 class ModelRegistryPort(Protocol):
