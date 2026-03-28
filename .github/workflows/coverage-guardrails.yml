@@ -189,6 +189,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
 
     steps:
       - name: Post coverage summary to PR
