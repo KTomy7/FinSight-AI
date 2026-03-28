@@ -5,6 +5,7 @@ import argparse
 from finsight.application.use_cases.train_model import TrainModelRequest
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -51,9 +52,9 @@ def _run_train(args: argparse.Namespace) -> int:
         print(f"[{model_type}] run_dir={run_dir}")
         print(
             "  "
-            f"MAE={float(model_metrics['mae']):.6f} "
-            f"RMSE={float(model_metrics['rmse']):.6f} "
-            f"DirectionAcc={float(model_metrics['direction_accuracy']):.4f}"
+            f"MAE={float(model_metrics[METRIC_MAE]):.6f} "
+            f"RMSE={float(model_metrics[METRIC_RMSE]):.6f} "
+            f"DirectionAcc={float(model_metrics[METRIC_DIRECTION_ACCURACY]):.4f}"
         )
 
     return 0

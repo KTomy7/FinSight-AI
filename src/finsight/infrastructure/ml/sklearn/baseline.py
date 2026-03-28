@@ -5,6 +5,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from finsight.domain.metrics import forecast_metrics
 from finsight.domain.ports import ModelPort
 
 SUPPORTED_MODEL_TYPES = ("naive_zero", "naive_mean")
@@ -42,17 +43,7 @@ class NaiveBaselineModel(ModelPort):
         else:
             y_pred = np.full_like(y_test, fill_value=float(np.mean(y_train)), dtype=float)
 
-        abs_errors = np.abs(y_test - y_pred)
-        sq_errors = np.square(y_test - y_pred)
-
-        y_pred_dir = (y_pred > 0).astype(int)
-        y_true_dir = (y_test > 0).astype(int)
-
-        metrics = {
-            "mae": float(np.mean(abs_errors)),
-            "rmse": float(np.sqrt(np.mean(sq_errors))),
-            "direction_accuracy": float(np.mean(y_pred_dir == y_true_dir)),
-        }
+        metrics = forecast_metrics(y_true=y_test, y_pred=y_pred)
 
         pred_cols = [col for col in id_columns if col in test_df.columns]
         predictions = test_df[pred_cols].copy() if pred_cols else pd.DataFrame(index=test_df.index)

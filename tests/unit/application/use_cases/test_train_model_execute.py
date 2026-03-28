@@ -10,6 +10,7 @@ import finsight.application.use_cases.train_model as train_model_module
 from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
 from finsight.application.use_cases.train_model import TrainModel, TrainModelRequest
 from finsight.domain.entities import OHLCVSeries
+from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 from finsight.infrastructure.features import PandasFeatureStore
 from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
@@ -142,10 +143,12 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
 
         assert metrics_json["n_train"] > 0
         assert metrics_json["n_test"] > 0
+        assert set(SUPPORTED_METRIC_NAMES).issubset(metrics_json)
         assert {"date", "ticker", "y_true", "y_pred"}.issubset(predictions_df.columns)
 
         assert response.metrics[model_type]["n_train"] == metrics_json["n_train"]
         assert response.metrics[model_type]["n_test"] == metrics_json["n_test"]
+        assert set(SUPPORTED_METRIC_NAMES).issubset(response.metrics[model_type])
 
 
 def test_execute_rejects_unsupported_model_types_from_model_port(tmp_path) -> None:
