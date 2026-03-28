@@ -108,7 +108,7 @@ def test_get_training_tickers_normalizes_case_and_whitespace() -> None:
 
 def test_get_training_tickers_rejects_blank_and_duplicates() -> None:
     with pytest.raises(ValueError, match="at least one symbol"):
-        _get_training_tickers(["   ", ""]) 
+        _get_training_tickers(["   ", ""])
 
     with pytest.raises(ValueError, match="must not contain duplicates"):
         _get_training_tickers(["aapl", " AAPL "])

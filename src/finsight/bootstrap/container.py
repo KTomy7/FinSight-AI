@@ -36,12 +36,12 @@ def build_container() -> AppContainer:
     model = NaiveBaselineModel()
     model_registry = LocalFileModelRegistry()
     train_model = TrainModel(
-        fetch_market_data,
-        feature_store,
-        model,
-        model_registry,
-        settings.training.training_tickers,
-        settings.stock_data.default_interval,
+        fetch_market_data=fetch_market_data,
+        feature_store=feature_store,
+        model=model,
+        model_registry=model_registry,
+        training_tickers=settings.training.training_tickers,
+        default_interval=settings.stock_data.default_interval,
     )
 
     return AppContainer(fetch_market_data=fetch_market_data, train_model=train_model)
