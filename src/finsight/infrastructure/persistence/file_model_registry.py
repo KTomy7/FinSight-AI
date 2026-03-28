@@ -43,13 +43,18 @@ class LocalFileModelRegistry(ModelRegistryPort):
             predictions.to_csv(output_path, index=False)
             return
 
-        rows = list(self._normalize_rows(predictions))
+        rows = self._normalize_rows(predictions)
         with output_path.open("w", newline="", encoding="utf-8") as file_obj:
             if not rows:
                 file_obj.write("")
                 return
 
+            # Compute fieldnames as the ordered union of keys across all rows
             fieldnames = list(rows[0].keys())
+            for row in rows[1:]:
+                for key in row.keys():
+                    if key not in fieldnames:
+                        fieldnames.append(key)
             writer = csv.DictWriter(file_obj, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
