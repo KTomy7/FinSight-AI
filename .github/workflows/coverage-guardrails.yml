@@ -194,17 +194,18 @@ jobs:
             const nonRegressionStatus = process.env.NON_REGRESSION_STATUS || 'n/a';
             const changedLinesStatus = process.env.CHANGED_LINES_STATUS || 'n/a';
 
-            const body = `${marker}
-            ## Coverage Guardrails
-            - PR total coverage: **${prTotal}%**
-            - Main total coverage: **${mainTotal}%**
-            - Coverage delta (main - PR): **${drop}%**
-            - Allowed max drop: **${allowed}%**
-            - Changed-lines coverage: **${changed}%**
-            - Required changed-lines coverage: **${changedMin}%**
-            - Non-regression gate: **${nonRegressionStatus}**
-            - Changed-lines gate: **${changedLinesStatus}**
-            `;
+            const body = [
+              marker,
+              '## Coverage Guardrails',
+              `- PR total coverage: **${prTotal}%**`,
+              `- Main total coverage: **${mainTotal}%**`,
+              `- Coverage delta (main - PR): **${drop}%**`,
+              `- Allowed max drop: **${allowed}%**`,
+              `- Changed-lines coverage: **${changed}%**`,
+              `- Required changed-lines coverage: **${changedMin}%**`,
+              `- Non-regression gate: **${nonRegressionStatus}**`,
+              `- Changed-lines gate: **${changedLinesStatus}**`,
+            ].join('\n');
 
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
