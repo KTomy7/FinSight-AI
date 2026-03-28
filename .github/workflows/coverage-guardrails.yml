@@ -1,0 +1,230 @@
+name: Coverage Guardrails
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage-guardrails:
+    runs-on: ubuntu-latest
+    env:
+      MAX_ALLOWED_DROP: "0.2"
+      CHANGED_LINES_MIN: "80"
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project and test tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run tests and generate PR coverage XML
+        run: |
+          python -m pytest -q \
+            --cov=src/finsight \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-pr.xml
+
+      - name: Capture PR total coverage
+        id: pr_coverage
+        shell: bash
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("coverage-pr.xml").getroot()
+          pr_total = float(root.attrib["line-rate"]) * 100
+          with open("$GITHUB_OUTPUT", "a", encoding="utf-8") as fh:
+              fh.write(f"total={pr_total:.2f}\n")
+          print(f"PR total coverage: {pr_total:.2f}%")
+          PY
+
+      - name: Compute baseline coverage from main
+        id: main_coverage
+        shell: bash
+        run: |
+          git fetch origin main
+          git worktree add ../_baseline_main origin/main
+
+          pushd ../_baseline_main
+          python -m pip install -e ".[dev]"
+          python -m pytest -q \
+            --cov=src/finsight \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-main.xml
+
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("coverage-main.xml").getroot()
+          main_total = float(root.attrib["line-rate"]) * 100
+          with open("$GITHUB_OUTPUT", "a", encoding="utf-8") as fh:
+              fh.write(f"total={main_total:.2f}\n")
+          print(f"Main total coverage: {main_total:.2f}%")
+          PY
+          popd
+
+          git worktree remove ../_baseline_main --force
+
+      - name: Enforce non-regression coverage gate
+        id: coverage_guard
+        shell: bash
+        env:
+          PR_TOTAL: ${{ steps.pr_coverage.outputs.total }}
+          MAIN_TOTAL: ${{ steps.main_coverage.outputs.total }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          pr_total = float(os.environ["PR_TOTAL"])
+          main_total = float(os.environ["MAIN_TOTAL"])
+          max_drop = float(os.environ["MAX_ALLOWED_DROP"])
+
+          drop = main_total - pr_total
+          allowed_floor = main_total - max_drop
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"drop={drop:.2f}\n")
+              fh.write(f"allowed_floor={allowed_floor:.2f}\n")
+
+          print(f"Main coverage: {main_total:.2f}%")
+          print(f"PR coverage: {pr_total:.2f}%")
+          print(f"Coverage drop: {drop:.2f}%")
+          print(f"Allowed drop: {max_drop:.2f}%")
+
+          if pr_total < allowed_floor:
+              print(
+                  f"Coverage regression too large: drop {drop:.2f}% exceeds allowed {max_drop:.2f}%",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print("Coverage non-regression gate passed.")
+          PY
+
+      - name: Measure changed-lines coverage
+        id: changed_lines
+        shell: bash
+        run: |
+          diff-cover coverage-pr.xml \
+            --compare-branch=origin/main | tee diff-cover.txt
+
+          python - <<'PY'
+          import os
+          import re
+          import sys
+
+          text = open("diff-cover.txt", "r", encoding="utf-8").read()
+          matches = re.findall(r"Coverage:\s*([0-9]+(?:\.[0-9]+)?)%", text)
+          if not matches:
+              print("Could not parse changed-lines coverage from diff-cover output.", file=sys.stderr)
+              sys.exit(1)
+
+          changed_lines_coverage = float(matches[-1])
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"coverage={changed_lines_coverage:.2f}\n")
+          print(f"Changed-lines coverage: {changed_lines_coverage:.2f}%")
+          PY
+
+      - name: Enforce changed-lines coverage >= threshold
+        id: changed_lines_guard
+        shell: bash
+        env:
+          CHANGED_LINES_COVERAGE: ${{ steps.changed_lines.outputs.coverage }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          changed = float(os.environ["CHANGED_LINES_COVERAGE"])
+          threshold = float(os.environ["CHANGED_LINES_MIN"])
+
+          print(f"Changed-lines coverage: {changed:.2f}%")
+          print(f"Required changed-lines coverage: {threshold:.2f}%")
+
+          if changed < threshold:
+              print(
+                  f"Changed-lines coverage gate failed: {changed:.2f}% < {threshold:.2f}%",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print("Changed-lines coverage gate passed.")
+          PY
+
+      - name: Post coverage summary to PR
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          PR_TOTAL: ${{ steps.pr_coverage.outputs.total }}
+          MAIN_TOTAL: ${{ steps.main_coverage.outputs.total }}
+          COVERAGE_DROP: ${{ steps.coverage_guard.outputs.drop }}
+          ALLOWED_DROP: ${{ env.MAX_ALLOWED_DROP }}
+          CHANGED_LINES_COVERAGE: ${{ steps.changed_lines.outputs.coverage }}
+          CHANGED_LINES_MIN: ${{ env.CHANGED_LINES_MIN }}
+          NON_REGRESSION_STATUS: ${{ steps.coverage_guard.outcome }}
+          CHANGED_LINES_STATUS: ${{ steps.changed_lines_guard.outcome }}
+        with:
+          script: |
+            const marker = '<!-- coverage-guardrails -->';
+            const prTotal = process.env.PR_TOTAL || 'n/a';
+            const mainTotal = process.env.MAIN_TOTAL || 'n/a';
+            const drop = process.env.COVERAGE_DROP || 'n/a';
+            const allowed = process.env.ALLOWED_DROP || '0.2';
+            const changed = process.env.CHANGED_LINES_COVERAGE || 'n/a';
+            const changedMin = process.env.CHANGED_LINES_MIN || '80';
+            const nonRegressionStatus = process.env.NON_REGRESSION_STATUS || 'n/a';
+            const changedLinesStatus = process.env.CHANGED_LINES_STATUS || 'n/a';
+
+            const body = `${marker}
+            ## Coverage Guardrails
+            - PR total coverage: **${prTotal}%**
+            - Main total coverage: **${mainTotal}%**
+            - Coverage delta (main - PR): **${drop}%**
+            - Allowed max drop: **${allowed}%**
+            - Changed-lines coverage: **${changed}%**
+            - Required changed-lines coverage: **${changedMin}%**
+            - Non-regression gate: **${nonRegressionStatus}**
+            - Changed-lines gate: **${changedLinesStatus}**
+            `;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
+
+
