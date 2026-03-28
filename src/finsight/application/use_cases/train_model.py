@@ -74,7 +74,7 @@ def evaluate_naive_models(
     """
     _validate_model_types(model_types)
 
-    from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineModel  # lazy import to keep layer boundaries
+    from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineModel  # deferred import to avoid circular dependency
 
     model = NaiveBaselineModel()
 
