@@ -4,9 +4,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-
 from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
 from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
@@ -53,15 +50,6 @@ def _validate_model_types(model_types: list[str]) -> list[str]:
     return model_types
 
 
-def _frame_date_range(df: pd.DataFrame, *, date_col: str = "date") -> tuple[str, str]:
-    parsed = pd.to_datetime(df[date_col], errors="coerce")
-    min_ts = parsed.min()
-    max_ts = parsed.max()
-    if pd.isna(min_ts) or pd.isna(max_ts):
-        raise ValueError(f"DataFrame column '{date_col}' does not contain valid dates.")
-    return min_ts.date().isoformat(), max_ts.date().isoformat()
-
-
 def _parse_iso_date(iso_str: str) -> date:
     try:
         return date.fromisoformat(iso_str)
@@ -77,59 +65,6 @@ def _get_training_tickers(training_tickers: tuple[str, ...] | list[str]) -> list
         raise ValueError("Configured training tickers must not contain duplicates.")
     return tickers
 
-
-def evaluate_naive_models(
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
-    model_types: list[str],
-) -> tuple[dict[str, dict[str, float]], dict[str, pd.DataFrame]]:
-    if TARGET_COLUMN not in train_df.columns or TARGET_COLUMN not in test_df.columns:
-        raise ValueError(f"Both train_df and test_df must contain '{TARGET_COLUMN}'.")
-
-    if train_df.empty or test_df.empty:
-        raise ValueError("train_df and test_df must be non-empty for evaluation.")
-
-    validated_model_types = _validate_model_types(model_types)
-
-    y_train = train_df[TARGET_COLUMN].to_numpy(dtype=float)
-    y_test = test_df[TARGET_COLUMN].to_numpy(dtype=float)
-
-    metrics: dict[str, dict[str, float]] = {}
-    predictions: dict[str, pd.DataFrame] = {}
-
-    pred_cols = [col for col in ("date", "ticker") if col in test_df.columns]
-
-    for model_type in validated_model_types:
-        if model_type == "naive_zero":
-            y_pred = np.zeros_like(y_test, dtype=float)
-        elif model_type == "naive_mean":
-            y_pred = np.full_like(y_test, fill_value=float(np.mean(y_train)), dtype=float)
-        else:
-            # Defensive branch: supported model types are validated before this loop.
-            raise ValueError(
-                f"Unsupported model type '{model_type}'. Supported model types: {SUPPORTED_MODEL_TYPES}."
-            )
-
-        abs_errors = np.abs(y_test - y_pred)
-        sq_errors = np.square(y_test - y_pred)
-
-        y_pred_dir = (y_pred > 0).astype(int)
-        y_true_dir = (y_test > 0).astype(int)
-
-        direction_accuracy = np.mean(y_pred_dir == y_true_dir)
-
-        metrics[model_type] = {
-            "mae": float(np.mean(abs_errors)),
-            "rmse": float(np.sqrt(np.mean(sq_errors))),
-            "direction_accuracy": float(direction_accuracy),
-        }
-
-        pred_df = test_df[pred_cols].copy() if pred_cols else pd.DataFrame(index=test_df.index)
-        pred_df["y_true"] = y_test
-        pred_df["y_pred"] = y_pred
-        predictions[model_type] = pred_df.reset_index(drop=True)
-
-    return metrics, predictions
 
 
 class TrainModel:
