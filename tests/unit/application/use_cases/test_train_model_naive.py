@@ -8,7 +8,7 @@ from finsight.application.use_cases.train_model import (
     _validate_model_types,
     _validate_supported_model_types,
 )
-from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
+from finsight.domain.metrics import SUPPORTED_METRIC_NAMES, METRIC_DIRECTION_ACCURACY
 from finsight.infrastructure.features import TimeSplitPolicy
 from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
 
@@ -73,7 +73,7 @@ def test_naive_baseline_model_predictions_and_metrics() -> None:
 
     for metrics, predictions in ((zero_metrics, zero_predictions), (mean_metrics, mean_predictions)):
         assert set(SUPPORTED_METRIC_NAMES).issubset(metrics.keys())
-        assert 0.0 <= metrics["direction_accuracy"] <= 1.0
+        assert 0.0 <= metrics[METRIC_DIRECTION_ACCURACY] <= 1.0
         assert list(predictions.columns) == ["date", "ticker", "y_true", "y_pred"]
         assert len(predictions) == len(test_df)
 

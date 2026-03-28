@@ -43,7 +43,7 @@ class NaiveBaselineModel(ModelPort):
         else:
             y_pred = np.full_like(y_test, fill_value=float(np.mean(y_train)), dtype=float)
 
-        metrics = forecast_metrics(y_true=y_test, y_pred=y_pred)
+        metrics = forecast_metrics(y_true=y_test.tolist(), y_pred=y_pred.tolist())
 
         pred_cols = [col for col in id_columns if col in test_df.columns]
         predictions = test_df[pred_cols].copy() if pred_cols else pd.DataFrame(index=test_df.index)
