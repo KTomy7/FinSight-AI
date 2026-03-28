@@ -64,10 +64,15 @@ jobs:
         id: main_coverage
         shell: bash
         run: |
+          set -euo pipefail
           git fetch origin main
           git worktree add ../_baseline_main origin/main
 
           pushd ../_baseline_main
+          # Isolate baseline deps/editable install from the PR workspace environment.
+          python -m venv .venv-baseline
+          source .venv-baseline/bin/activate
+          python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
           python -m pytest --cov-fail-under=0 --cov-report=xml:coverage-main.xml
 
@@ -82,6 +87,7 @@ jobs:
               fh.write(f"total={main_total}\n")
           print(f"Main total coverage: {main_total:.2f}%")
           PY
+          deactivate
           popd
 
           git worktree remove ../_baseline_main --force
