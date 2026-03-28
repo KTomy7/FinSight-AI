@@ -46,13 +46,12 @@ def forecast_metrics(y_true: Sequence[float], y_pred: Sequence[float]) -> dict[s
     abs_error_sum = 0.0
     squared_error_sum = 0.0
     matching_directions = 0
-    
+
     for true_val, pred_val in zip(true_values, pred_values):
         error = true_val - pred_val
         abs_error_sum += abs(error)
         squared_error_sum += error ** 2
         matching_directions += int((true_val > 0.0) == (pred_val > 0.0))
-    
     return {
         METRIC_MAE: float(abs_error_sum / count),
         METRIC_RMSE: float(math.sqrt(squared_error_sum / count)),
