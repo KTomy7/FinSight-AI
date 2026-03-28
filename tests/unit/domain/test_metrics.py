@@ -56,6 +56,15 @@ def test_forecast_metrics_returns_canonical_metric_keys() -> None:
     assert metrics[METRIC_DIRECTION_ACCURACY] == pytest.approx(2 / 3)
 
 
+def test_forecast_metrics_allows_custom_direction_threshold() -> None:
+    y_true = [0.01, 0.03, 0.00]
+    y_pred = [0.04, -0.01, 0.00]
+
+    metrics = forecast_metrics(y_true, y_pred, positive_threshold=0.02)
+
+    assert metrics[METRIC_DIRECTION_ACCURACY] == pytest.approx(1 / 3)
+
+
 @pytest.mark.parametrize(
     ("y_true", "y_pred"),
     [

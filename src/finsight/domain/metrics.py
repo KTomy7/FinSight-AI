@@ -39,7 +39,12 @@ def direction_accuracy(
     return float(matching_directions / len(true_values))
 
 
-def forecast_metrics(y_true: Sequence[float], y_pred: Sequence[float]) -> dict[str, float]:
+def forecast_metrics(
+    y_true: Sequence[float],
+    y_pred: Sequence[float],
+    *,
+    positive_threshold: float = 0.0,
+) -> dict[str, float]:
     true_values, pred_values = _coerce_and_validate_inputs(y_true, y_pred)
 
     count = len(true_values)
@@ -51,7 +56,7 @@ def forecast_metrics(y_true: Sequence[float], y_pred: Sequence[float]) -> dict[s
         error = true_val - pred_val
         abs_error_sum += abs(error)
         squared_error_sum += error ** 2
-        matching_directions += int((true_val > 0.0) == (pred_val > 0.0))
+        matching_directions += int((true_val > positive_threshold) == (pred_val > positive_threshold))
     
     return {
         METRIC_MAE: float(abs_error_sum / count),
