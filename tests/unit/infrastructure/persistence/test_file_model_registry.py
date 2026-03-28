@@ -1,6 +1,7 @@
 import csv
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from finsight.infrastructure.persistence.file_model_registry import LocalFileModelRegistry
@@ -39,6 +40,36 @@ def test_save_predictions_writes_csv_from_row_mappings(tmp_path: Path) -> None:
     assert len(rows) == 2
     assert rows[0]["ticker"] == "AAPL"
     assert rows[1]["y_pred"] == "0.05"
+
+
+def test_save_predictions_writes_csv_from_dataframe(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    predictions_df = pd.DataFrame(
+        [
+            {"date": "2024-01-01", "ticker": "AAPL", "y_true": 0.1, "y_pred": 0.0},
+            {"date": "2024-01-02", "ticker": "MSFT", "y_true": -0.1, "y_pred": 0.05},
+        ]
+    )
+
+    registry.save_predictions(run_dir=str(run_dir), predictions=predictions_df)
+
+    loaded = pd.read_csv(run_dir / "predictions.csv")
+    assert list(loaded["ticker"]) == ["AAPL", "MSFT"]
+
+
+def test_save_predictions_rejects_object_with_non_callable_to_csv(tmp_path: Path) -> None:
+    class _FakePredictions:
+        to_csv = "not-callable"
+
+    registry = LocalFileModelRegistry()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    with pytest.raises(TypeError, match="must be a pandas DataFrame or list"):
+        registry.save_predictions(run_dir=str(run_dir), predictions=_FakePredictions())
 
 
 def test_save_predictions_rejects_non_list_payload(tmp_path: Path) -> None:

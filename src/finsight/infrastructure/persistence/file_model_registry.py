@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from finsight.domain.ports import ModelRegistryPort
 
 
@@ -40,7 +42,7 @@ class LocalFileModelRegistry(ModelRegistryPort):
     def save_predictions(self, *, run_dir: str, predictions: object) -> None:
         output_path = Path(run_dir) / "predictions.csv"
 
-        if hasattr(predictions, "to_csv"):
+        if isinstance(predictions, pd.DataFrame):
             predictions.to_csv(output_path, index=False)
             return
 
