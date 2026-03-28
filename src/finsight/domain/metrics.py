@@ -51,7 +51,7 @@ def forecast_metrics(
     abs_error_sum = 0.0
     squared_error_sum = 0.0
     matching_directions = 0
-    
+
     for true_val, pred_val in zip(true_values, pred_values):
         error = true_val - pred_val
         abs_error_sum += abs(error)
