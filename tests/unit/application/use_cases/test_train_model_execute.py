@@ -4,12 +4,16 @@ from types import SimpleNamespace
 from typing import cast
 
 import pandas as pd
+import pytest
 
 import finsight.application.use_cases.train_model as train_model_module
 from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
 from finsight.application.use_cases.train_model import TrainModel, TrainModelRequest
 from finsight.domain.entities import OHLCVSeries
 from finsight.domain.value_objects import DateRange, Interval, Ticker
+from finsight.infrastructure.features import PandasFeatureStore
+from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
+from finsight.infrastructure.persistence import LocalFileModelRegistry
 
 
 class _StubFetchMarketData:
@@ -48,6 +52,9 @@ def test_execute_uses_expected_fetch_date_window_and_default_interval(tmp_path) 
     stub = _StubFetchMarketData({ticker: _make_ohlcv_series(ticker) for ticker in tickers})
     train_model = TrainModel(
         fetch_market_data=cast(FetchMarketData, cast(object, stub)),
+        feature_store=PandasFeatureStore(),
+        model=NaiveBaselineModel(),
+        model_registry=LocalFileModelRegistry(),
         training_tickers=tickers,
         default_interval="1wk",
     )
@@ -88,6 +95,9 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
     stub = _StubFetchMarketData({ticker: _make_ohlcv_series(ticker) for ticker in tickers})
     train_model = TrainModel(
         fetch_market_data=cast(FetchMarketData, cast(object, stub)),
+        feature_store=PandasFeatureStore(),
+        model=NaiveBaselineModel(),
+        model_registry=LocalFileModelRegistry(),
         training_tickers=tickers,
         default_interval="1d",
     )
@@ -136,6 +146,31 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
 
         assert response.metrics[model_type]["n_train"] == metrics_json["n_train"]
         assert response.metrics[model_type]["n_test"] == metrics_json["n_test"]
+
+
+def test_execute_rejects_unsupported_model_types_from_model_port(tmp_path) -> None:
+    tickers = ("AAPL",)
+    stub = _StubFetchMarketData({ticker: _make_ohlcv_series(ticker) for ticker in tickers})
+    train_model = TrainModel(
+        fetch_market_data=cast(FetchMarketData, cast(object, stub)),
+        feature_store=PandasFeatureStore(),
+        model=NaiveBaselineModel(),
+        model_registry=LocalFileModelRegistry(),
+        training_tickers=tickers,
+    )
+
+    with pytest.raises(ValueError, match=r"Unsupported model type\(s\)"):
+        train_model.execute(
+            TrainModelRequest(
+                cutoff_date="2025-06-01",
+                years=2,
+                end="2026-03-17",
+                model_types=["naive_last"],
+                artifacts_dir=str(tmp_path / "runs"),
+            )
+        )
+
+    assert stub.calls == []
 
 
 

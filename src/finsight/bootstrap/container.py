@@ -6,7 +6,10 @@ from functools import lru_cache
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.application.use_cases.train_model import TrainModel
 from finsight.config.settings import get_settings
+from finsight.infrastructure.features.feature_store import PandasFeatureStore
 from finsight.infrastructure.market_data.yfinance_provider import YFinanceMarketDataProvider
+from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineModel
+from finsight.infrastructure.persistence.file_model_registry import LocalFileModelRegistry
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,8 +31,15 @@ def build_container() -> AppContainer:
         default_lookback_days=settings.stock_data.default_lookback_days,
         default_interval=settings.stock_data.default_interval,
     )
+
+    feature_store = PandasFeatureStore()
+    model = NaiveBaselineModel()
+    model_registry = LocalFileModelRegistry()
     train_model = TrainModel(
         fetch_market_data=fetch_market_data,
+        feature_store=feature_store,
+        model=model,
+        model_registry=model_registry,
         training_tickers=settings.training.training_tickers,
         default_interval=settings.stock_data.default_interval,
     )

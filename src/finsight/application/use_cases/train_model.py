@@ -1,19 +1,13 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-
 from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
-from finsight.infrastructure.features.feature_pipeline import FEATURE_COLUMNS, build_feature_dataset
-from finsight.infrastructure.features.policies import TimeSplitPolicy
+from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
 TARGET_COLUMN = "target_ret_1d"
-SUPPORTED_MODEL_TYPES = ("naive_zero", "naive_mean")
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,12 +30,6 @@ def _validate_model_types(model_types: list[str]) -> list[str]:
     if not model_types:
         raise ValueError("model_types must contain at least one model type.")
 
-    unsupported = [model_type for model_type in model_types if model_type not in SUPPORTED_MODEL_TYPES]
-    if unsupported:
-        raise ValueError(
-            f"Unsupported model type(s): {unsupported}. Supported model types: {SUPPORTED_MODEL_TYPES}."
-        )
-
     seen: set[str] = set()
     duplicates: list[str] = []
     for model_type in model_types:
@@ -55,13 +43,12 @@ def _validate_model_types(model_types: list[str]) -> list[str]:
     return model_types
 
 
-def _frame_date_range(df: pd.DataFrame, *, date_col: str = "date") -> tuple[str, str]:
-    parsed = pd.to_datetime(df[date_col], errors="coerce")
-    min_ts = parsed.min()
-    max_ts = parsed.max()
-    if pd.isna(min_ts) or pd.isna(max_ts):
-        raise ValueError(f"DataFrame column '{date_col}' does not contain valid dates.")
-    return min_ts.date().isoformat(), max_ts.date().isoformat()
+def _validate_supported_model_types(model_types: list[str], supported_model_types: tuple[str, ...]) -> None:
+    unsupported = [model_type for model_type in model_types if model_type not in supported_model_types]
+    if unsupported:
+        raise ValueError(
+            f"Unsupported model type(s): {unsupported}. Supported model types: {supported_model_types}."
+        )
 
 
 def _parse_iso_date(iso_str: str) -> date:
@@ -80,68 +67,21 @@ def _get_training_tickers(training_tickers: tuple[str, ...] | list[str]) -> list
     return tickers
 
 
-def evaluate_naive_models(
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
-    model_types: list[str],
-) -> tuple[dict[str, dict[str, float]], dict[str, pd.DataFrame]]:
-    if TARGET_COLUMN not in train_df.columns or TARGET_COLUMN not in test_df.columns:
-        raise ValueError(f"Both train_df and test_df must contain '{TARGET_COLUMN}'.")
-
-    if train_df.empty or test_df.empty:
-        raise ValueError("train_df and test_df must be non-empty for evaluation.")
-
-    validated_model_types = _validate_model_types(model_types)
-
-    y_train = train_df[TARGET_COLUMN].to_numpy(dtype=float)
-    y_test = test_df[TARGET_COLUMN].to_numpy(dtype=float)
-
-    metrics: dict[str, dict[str, float]] = {}
-    predictions: dict[str, pd.DataFrame] = {}
-
-    pred_cols = [col for col in ("date", "ticker") if col in test_df.columns]
-
-    for model_type in validated_model_types:
-        if model_type == "naive_zero":
-            y_pred = np.zeros_like(y_test, dtype=float)
-        elif model_type == "naive_mean":
-            y_pred = np.full_like(y_test, fill_value=float(np.mean(y_train)), dtype=float)
-        else:
-            # Defensive branch: supported model types are validated before this loop.
-            raise ValueError(
-                f"Unsupported model type '{model_type}'. Supported model types: {SUPPORTED_MODEL_TYPES}."
-            )
-
-        abs_errors = np.abs(y_test - y_pred)
-        sq_errors = np.square(y_test - y_pred)
-
-        y_pred_dir = (y_pred > 0).astype(int)
-        y_true_dir = (y_test > 0).astype(int)
-
-        direction_accuracy = np.mean(y_pred_dir == y_true_dir)
-
-        metrics[model_type] = {
-            "mae": float(np.mean(abs_errors)),
-            "rmse": float(np.sqrt(np.mean(sq_errors))),
-            "direction_accuracy": float(direction_accuracy),
-        }
-
-        pred_df = test_df[pred_cols].copy() if pred_cols else pd.DataFrame(index=test_df.index)
-        pred_df["y_true"] = y_test
-        pred_df["y_pred"] = y_pred
-        predictions[model_type] = pred_df.reset_index(drop=True)
-
-    return metrics, predictions
-
 
 class TrainModel:
     def __init__(
         self,
         fetch_market_data: FetchMarketData,
+        feature_store: FeatureStorePort,
+        model: ModelPort,
+        model_registry: ModelRegistryPort,
         training_tickers: tuple[str, ...] | list[str],
         default_interval: str = "1d",
     ) -> None:
         self._fetch_market_data = fetch_market_data
+        self._feature_store = feature_store
+        self._model = model
+        self._model_registry = model_registry
         self._training_tickers = tuple(training_tickers)
         self._default_interval = default_interval
 
@@ -151,6 +91,7 @@ class TrainModel:
 
         tickers = _get_training_tickers(self._training_tickers)
         model_types = _validate_model_types(request.model_types)
+        _validate_supported_model_types(model_types, self._model.supported_model_types())
         resolved_interval = request.interval or self._default_interval
 
         end_date = _parse_iso_date(request.end) if request.end else date.today()
@@ -170,22 +111,31 @@ class TrainModel:
             )
             series_list.append(result.history)
 
-        features_df = build_feature_dataset(series_list)
-
-        policy = TimeSplitPolicy(
+        feature_dataset = self._feature_store.build_feature_dataset(series_list)
+        train_dataset, test_dataset = self._feature_store.split_train_test(
+            feature_dataset,
             cutoff_date=request.cutoff_date,
             date_col="date",
             inclusive_test=True,
         )
-        train_df, test_df = policy.split_frame(features_df)
 
-        model_metrics, predictions = evaluate_naive_models(train_df, test_df, model_types)
+        model_metrics: dict[str, dict[str, float]] = {}
+        predictions_by_model: dict[str, object] = {}
+        for model_type in model_types:
+            metric_values, predictions = self._model.evaluate(
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                model_type=model_type,
+                target_column=TARGET_COLUMN,
+            )
+            model_metrics[model_type] = dict(metric_values)
+            predictions_by_model[model_type] = predictions
 
-        train_min_date, train_max_date = _frame_date_range(train_df)
-        test_min_date, test_max_date = _frame_date_range(test_df)
-
-        artifact_root = Path(request.artifacts_dir)
-        artifact_root.mkdir(parents=True, exist_ok=True)
+        train_min_date, train_max_date = self._feature_store.frame_date_range(train_dataset)
+        test_min_date, test_max_date = self._feature_store.frame_date_range(test_dataset)
+        n_train = self._feature_store.row_count(train_dataset)
+        n_test = self._feature_store.row_count(test_dataset)
+        feature_columns = list(self._feature_store.feature_columns())
 
         created_at = datetime.now(timezone.utc).replace(microsecond=0)
         created_at_utc = created_at.isoformat().replace("+00:00", "Z")
@@ -196,12 +146,16 @@ class TrainModel:
 
         for model_type in model_types:
             run_id = f"{run_prefix}__{model_type}"
-            run_dir = self._create_unique_run_dir(artifact_root / run_id)
+            run_dir = self._model_registry.create_run_dir(
+                artifact_root=request.artifacts_dir,
+                run_id=run_id,
+            )
+            run_dir_name = Path(run_dir).name
 
             enriched_metrics: dict[str, float | int | str] = {
                 **model_metrics[model_type],
-                "n_train": int(len(train_df)),
-                "n_test": int(len(test_df)),
+                "n_train": n_train,
+                "n_test": n_test,
                 "train_min_date": train_min_date,
                 "train_max_date": train_max_date,
                 "test_min_date": test_min_date,
@@ -209,7 +163,7 @@ class TrainModel:
             }
 
             metadata = {
-                "run_id": run_dir.name,
+                "run_id": run_dir_name,
                 "created_at_utc": created_at_utc,
                 "model_type": model_type,
                 "tickers": tickers,
@@ -218,47 +172,32 @@ class TrainModel:
                 "end": request.end or end_date.isoformat(),
                 "cutoff_date": request.cutoff_date,
                 "horizon": "1d",
-                "feature_columns": list(FEATURE_COLUMNS),
+                "feature_columns": feature_columns,
                 "target_column": TARGET_COLUMN,
-                "n_train": int(len(train_df)),
-                "n_test": int(len(test_df)),
+                "n_train": n_train,
+                "n_test": n_test,
                 "train_min_date": train_min_date,
                 "train_max_date": train_max_date,
                 "test_min_date": test_min_date,
                 "test_max_date": test_max_date,
             }
 
-            (run_dir / "metrics.json").write_text(
-                json.dumps(enriched_metrics, indent=2, sort_keys=True),
-                encoding="utf-8",
+            self._model_registry.save_metrics(
+                run_dir=run_dir,
+                metrics=enriched_metrics,
             )
-            (run_dir / "metadata.json").write_text(
-                json.dumps(metadata, indent=2, sort_keys=True),
-                encoding="utf-8",
+            self._model_registry.save_metadata(
+                run_dir=run_dir,
+                metadata=metadata,
             )
-            predictions[model_type].to_csv(run_dir / "predictions.csv", index=False)
+            self._model_registry.save_predictions(
+                run_dir=run_dir,
+                predictions=predictions_by_model[model_type],
+            )
 
-            run_dirs[model_type] = str(run_dir)
+            run_dirs[model_type] = run_dir
             metrics[model_type] = enriched_metrics
 
         return TrainModelResponse(run_dirs=run_dirs, metrics=metrics)
 
-    @staticmethod
-    def _create_unique_run_dir(base_path: Path) -> Path:
-        # Try to create the base directory first. If it already exists, fall back to
-        # creating a uniquely suffixed directory in a race-safe way.
-        try:
-            base_path.mkdir(parents=True, exist_ok=False)
-            return base_path
-        except FileExistsError:
-            pass
-
-        suffix = 1
-        while True:
-            candidate = Path(f"{base_path}_{suffix}")
-            try:
-                candidate.mkdir(parents=True, exist_ok=False)
-                return candidate
-            except FileExistsError:
-                suffix += 1
 
