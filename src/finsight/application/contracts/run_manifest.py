@@ -56,12 +56,15 @@ def validate_run_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     _require_iso_datetime_z(payload["created_at"], key="created_at")
 
     feature_columns = payload["feature_columns"]
-    if not isinstance(feature_columns, list) or not feature_columns:
-        raise TypeError("Manifest key 'feature_columns' must be a non-empty list.")
+    if isinstance(feature_columns, (str, bytes)) or not isinstance(feature_columns, Sequence):
+        raise TypeError("Manifest key 'feature_columns' must be a non-empty sequence of strings.")
+    if not feature_columns:
+        raise TypeError("Manifest key 'feature_columns' must be a non-empty sequence of strings.")
     if any(not isinstance(col, str) or not col.strip() for col in feature_columns):
         raise TypeError("Manifest key 'feature_columns' must contain non-empty strings.")
     if len(set(feature_columns)) != len(feature_columns):
         raise ValueError("Manifest key 'feature_columns' must not contain duplicates.")
+    payload["feature_columns"] = list(feature_columns)
 
     split_policy = _require_mapping(payload["split_policy"], key="split_policy")
     for key in ("name", "cutoff_date", "date_col", "inclusive_test"):

@@ -174,7 +174,7 @@ class TrainModel:
                 "test_max_date": test_max_date,
             }
 
-            metadata = build_run_manifest(
+            manifest = build_run_manifest(
                 run_id=run_dir_name,
                 model_id=model_type,
                 feature_columns=feature_columns,
@@ -212,9 +212,9 @@ class TrainModel:
                 run_dir=run_dir,
                 metrics=enriched_metrics,
             )
-            self._model_registry.save_metadata(
+            self._model_registry.save_manifest(
                 run_dir=run_dir,
-                metadata=metadata,
+                manifest=manifest,
             )
             self._model_registry.save_predictions(
                 run_dir=run_dir,

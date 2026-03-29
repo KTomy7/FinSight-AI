@@ -69,7 +69,7 @@ class ModelRegistryPort(Protocol):
     def save_metrics(self, *, run_dir: str, metrics: Mapping[str, float | int | str]) -> None:
         raise NotImplementedError
 
-    def save_metadata(self, *, run_dir: str, metadata: Mapping[str, Any]) -> None:
+    def save_manifest(self, *, run_dir: str, manifest: Mapping[str, Any]) -> None:
         raise NotImplementedError
 
     def save_predictions(self, *, run_dir: str, predictions: object) -> None:

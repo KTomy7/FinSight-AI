@@ -64,6 +64,24 @@ def test_validate_run_manifest_rejects_bad_dates_format() -> None:
         validate_run_manifest(manifest)
 
 
+def test_validate_run_manifest_accepts_feature_columns_tuple_and_normalizes_to_list() -> None:
+    manifest = _valid_manifest()
+    manifest["feature_columns"] = ("ret_1d", "mom_20d")
+
+    validated = validate_run_manifest(manifest)
+
+    assert validated["feature_columns"] == ["ret_1d", "mom_20d"]
+    assert isinstance(validated["feature_columns"], list)
+
+
+def test_validate_run_manifest_rejects_feature_columns_string() -> None:
+    manifest = _valid_manifest()
+    manifest["feature_columns"] = "ret_1d"
+
+    with pytest.raises(TypeError, match="feature_columns"):
+        validate_run_manifest(manifest)
+
+
 def test_build_run_manifest_validates_on_create() -> None:
     payload = _valid_manifest()
     payload["feature_columns"] = ["ret_1d", "ret_1d"]
