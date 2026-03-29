@@ -57,6 +57,22 @@ def test_validate_run_manifest_rejects_bad_created_at_format() -> None:
         validate_run_manifest(manifest)
 
 
+def test_validate_run_manifest_rejects_created_at_with_space_separator() -> None:
+    manifest = _valid_manifest()
+    manifest["created_at"] = "2026-03-29 12:00:00Z"
+
+    with pytest.raises(ValueError, match="YYYY-MM-DDTHH:MM:SSZ"):
+        validate_run_manifest(manifest)
+
+
+def test_validate_run_manifest_rejects_created_at_with_fractional_seconds() -> None:
+    manifest = _valid_manifest()
+    manifest["created_at"] = "2026-03-29T12:00:00.123Z"
+
+    with pytest.raises(ValueError, match="YYYY-MM-DDTHH:MM:SSZ"):
+        validate_run_manifest(manifest)
+
+
 def test_validate_run_manifest_rejects_bad_dates_format() -> None:
     manifest = _valid_manifest()
     manifest["dates"] = {**manifest["dates"], "test_max": "03-29-2026"}

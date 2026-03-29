@@ -128,10 +128,9 @@ def _require_iso_datetime_z(value: Any, *, key: str) -> None:
     if not isinstance(value, str) or not value.endswith("Z"):
         raise TypeError(f"Manifest key '{key}' must be a UTC ISO-8601 timestamp ending in 'Z'.")
 
-    normalized = value[:-1] + "+00:00"
     try:
-        datetime.fromisoformat(normalized)
+        datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
     except ValueError as exc:
         raise ValueError(
-            f"Manifest key '{key}' must be a valid UTC ISO-8601 timestamp (e.g. 2026-03-29T12:00:00Z)."
+            f"Manifest key '{key}' must be a valid UTC ISO-8601 timestamp in the format YYYY-MM-DDTHH:MM:SSZ."
         ) from exc
