@@ -54,7 +54,8 @@ def validate_run_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     if unexpected:
         raise ValueError(f"Manifest contains unexpected key(s): {unexpected}.")
 
-    # Only retain keys that are part of the standardized manifest schema.
+    # After rejecting unexpected keys, build a payload containing only keys
+    # from the standardized manifest schema.
     payload: dict[str, Any] = {key: raw_payload[key] for key in REQUIRED_MANIFEST_KEYS}
     _require_non_empty_str(payload["run_id"], key="run_id")
     _require_non_empty_str(payload["model_id"], key="model_id")
