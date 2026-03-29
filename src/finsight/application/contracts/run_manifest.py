@@ -32,7 +32,7 @@ def build_run_manifest(
     manifest = {
         "run_id": run_id,
         "model_id": model_id,
-        "feature_columns": list(feature_columns),
+        "feature_columns": feature_columns,
         "target": target,
         "split_policy": dict(split_policy),
         "dates": dict(dates),
