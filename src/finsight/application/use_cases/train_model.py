@@ -93,7 +93,10 @@ class TrainModel:
 
         tickers = _get_training_tickers(self._training_tickers)
         model_types = _validate_model_types(request.model_types)
-        supported_model_types = self._supported_model_types or self._model.supported_model_types()
+        if self._supported_model_types is None:
+            supported_model_types = self._model.supported_model_types()
+        else:
+            supported_model_types = self._supported_model_types
         _validate_supported_model_types(model_types, supported_model_types)
         resolved_interval = request.interval or self._default_interval
 

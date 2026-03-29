@@ -165,7 +165,7 @@ def _parse_model_catalog(value: Any, default: tuple[ModelCatalogEntry, ...]) -> 
             )
         )
 
-    return tuple(parsed_entries) if parsed_entries else default
+    return tuple(parsed_entries)
 
 
 @lru_cache(maxsize=1)
@@ -203,7 +203,13 @@ def get_settings(config_path: Path | None = None) -> Settings:
         data_ttl_seconds=_as_int(cache_raw.get("data_ttl_seconds"), 900, minimum=1),
     )
 
-    catalog = _parse_model_catalog(model_raw.get("catalog"), DEFAULT_MODEL_CATALOG)
+    raw_catalog = model_raw.get("catalog")
+    if raw_catalog is None:
+        catalog = _parse_model_catalog(raw_catalog, DEFAULT_MODEL_CATALOG)
+    else:
+        # When a catalog is explicitly provided (even if empty/invalid), do not
+        # fall back to DEFAULT_MODEL_CATALOG so that validation can detect it.
+        catalog = _parse_model_catalog(raw_catalog, ())
     if not catalog:
         raise ValueError("model_defaults.catalog must contain at least one model entry.")
 
