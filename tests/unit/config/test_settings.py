@@ -5,30 +5,92 @@ import pytest
 from finsight.config.settings import get_settings
 
 
-def test_get_settings_reads_training_tickers_from_config(tmp_path: Path) -> None:
+def test_get_settings_reads_ticker_catalog_from_config(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
         """
-training:
-  training_tickers:
-    - aapl
-    - jpm
+ticker_catalog:
+  - symbol: aapl
+    company_name: Apple Inc.
+  - symbol: jpm
+    company_name: JPMorgan Chase & Co.
 """.strip(),
         encoding="utf-8",
     )
 
     settings = get_settings(config_path)
 
-    assert settings.training.training_tickers == ("aapl", "jpm")
+    assert settings.ticker_catalog.symbols() == ("AAPL", "JPM")
+    assert settings.ticker_catalog.entries[0].company_name == "Apple Inc."
 
 
-def test_get_settings_uses_default_training_tickers_when_missing(tmp_path: Path) -> None:
+def test_get_settings_uses_default_ticker_catalog_when_missing(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text("stock_data: {}", encoding="utf-8")
 
     settings = get_settings(config_path)
 
-    assert settings.training.training_tickers == ("AAPL", "JPM", "XOM", "KO", "TSLA")
+    assert settings.ticker_catalog.symbols() == ("AAPL", "JPM", "XOM", "KO", "TSLA")
+
+
+def test_get_settings_rejects_explicit_empty_ticker_catalog(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+ticker_catalog: []
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ticker_catalog must contain at least one ticker entry"):
+        get_settings(config_path)
+
+
+def test_get_settings_rejects_explicit_null_ticker_catalog(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+ticker_catalog: null
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ticker_catalog must contain at least one ticker entry"):
+        get_settings(config_path)
+
+
+def test_get_settings_rejects_duplicate_ticker_symbols_case_insensitive(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+ticker_catalog:
+  - symbol: aapl
+    company_name: Apple Inc.
+  - symbol: AAPL
+    company_name: Apple Duplicate
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ticker_catalog contains duplicate symbols"):
+        get_settings(config_path)
+
+
+def test_get_settings_rejects_entries_without_symbol_or_company_name(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+ticker_catalog:
+  - symbol: ""
+    company_name: Missing Symbol
+  - symbol: AAPL
+    company_name: ""
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"ticker_catalog\[0\]\.symbol must be a non-empty string"):
+        get_settings(config_path)
 
 
 def test_get_settings_parses_model_catalog_with_default_model_id(tmp_path: Path) -> None:
