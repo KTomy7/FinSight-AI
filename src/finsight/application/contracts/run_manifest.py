@@ -44,12 +44,18 @@ def build_run_manifest(
 
 
 def validate_run_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
-    payload = dict(manifest)
+    raw_payload = dict(manifest)
 
-    missing = [key for key in REQUIRED_MANIFEST_KEYS if key not in payload]
+    missing = [key for key in REQUIRED_MANIFEST_KEYS if key not in raw_payload]
     if missing:
         raise ValueError(f"Manifest is missing required key(s): {missing}.")
 
+    unexpected = [key for key in raw_payload if key not in REQUIRED_MANIFEST_KEYS]
+    if unexpected:
+        raise ValueError(f"Manifest contains unexpected key(s): {unexpected}.")
+
+    # Only retain keys that are part of the standardized manifest schema.
+    payload: dict[str, Any] = {key: raw_payload[key] for key in REQUIRED_MANIFEST_KEYS}
     _require_non_empty_str(payload["run_id"], key="run_id")
     _require_non_empty_str(payload["model_id"], key="model_id")
     _require_non_empty_str(payload["target"], key="target")
