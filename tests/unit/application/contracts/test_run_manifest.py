@@ -1,4 +1,5 @@
 import pytest
+from types import MappingProxyType
 
 from finsight.application.contracts import REQUIRED_MANIFEST_KEYS, build_run_manifest, validate_run_manifest
 
@@ -80,6 +81,21 @@ def test_validate_run_manifest_rejects_feature_columns_string() -> None:
 
     with pytest.raises(TypeError, match="feature_columns"):
         validate_run_manifest(manifest)
+
+
+def test_validate_run_manifest_normalizes_nested_mappings_to_dict() -> None:
+    manifest = _valid_manifest()
+    manifest["split_policy"] = MappingProxyType(dict(manifest["split_policy"]))
+    manifest["dates"] = MappingProxyType(dict(manifest["dates"]))
+    manifest["params"] = MappingProxyType(dict(manifest["params"]))
+    manifest["artifact_paths"] = MappingProxyType(dict(manifest["artifact_paths"]))
+
+    validated = validate_run_manifest(manifest)
+
+    assert isinstance(validated["split_policy"], dict)
+    assert isinstance(validated["dates"], dict)
+    assert isinstance(validated["params"], dict)
+    assert isinstance(validated["artifact_paths"], dict)
 
 
 def test_build_run_manifest_validates_on_create() -> None:

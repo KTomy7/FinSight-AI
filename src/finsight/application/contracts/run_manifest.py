@@ -75,6 +75,7 @@ def validate_run_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
     _require_iso_date(split_policy["cutoff_date"], key="split_policy.cutoff_date")
     if not isinstance(split_policy["inclusive_test"], bool):
         raise TypeError("Manifest key 'split_policy.inclusive_test' must be a boolean.")
+    payload["split_policy"] = dict(split_policy)
 
     dates = _require_mapping(payload["dates"], key="dates")
     for key in (
@@ -88,14 +89,17 @@ def validate_run_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
         if key not in dates:
             raise ValueError(f"Manifest key 'dates' is missing '{key}'.")
         _require_iso_date(dates[key], key=f"dates.{key}")
+    payload["dates"] = dict(dates)
 
-    _require_mapping(payload["params"], key="params")
+    params = _require_mapping(payload["params"], key="params")
+    payload["params"] = dict(params)
 
     artifact_paths = _require_mapping(payload["artifact_paths"], key="artifact_paths")
     for key in ("run_dir", "metrics", "manifest", "predictions"):
         if key not in artifact_paths:
             raise ValueError(f"Manifest key 'artifact_paths' is missing '{key}'.")
         _require_non_empty_str(artifact_paths[key], key=f"artifact_paths.{key}")
+    payload["artifact_paths"] = dict(artifact_paths)
 
     return payload
 
