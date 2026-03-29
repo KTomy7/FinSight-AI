@@ -6,8 +6,9 @@ from finsight.application.use_cases.fetch_market_data import (
     FetchMarketData,
     FetchMarketDataRequest,
 )
-from finsight.config.settings import get_settings
+from finsight.adapters.web_streamlit.ticker_options import build_ticker_select_items
 from finsight.bootstrap.container import build_container
+from finsight.config.settings import get_settings
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
@@ -60,7 +61,14 @@ def render():
     col1, col2 = st.columns(2)
 
     with col1:
-        ticker = st.selectbox("Choose a stock ticker", list(_SETTINGS.training.training_tickers))
+        ticker_items = build_ticker_select_items(_SETTINGS.ticker_catalog.entries)
+        ticker_symbols = [symbol for symbol, _label in ticker_items]
+        ticker_label_lookup = {symbol: label for symbol, label in ticker_items}
+        ticker = st.selectbox(
+            "Choose a stock ticker",
+            ticker_symbols,
+            format_func=ticker_label_lookup.get,
+        )
 
     model_defaults = _SETTINGS.model_defaults
     id_to_label = model_defaults.id_to_label()
