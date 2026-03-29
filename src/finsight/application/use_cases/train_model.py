@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from finsight.application.contracts import build_run_manifest
 from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
 from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
@@ -173,25 +174,39 @@ class TrainModel:
                 "test_max_date": test_max_date,
             }
 
-            metadata = {
-                "run_id": run_dir_name,
-                "created_at_utc": created_at_utc,
-                "model_type": model_type,
-                "tickers": tickers,
-                "interval": resolved_interval,
-                "years": int(request.years),
-                "end": request.end or end_date.isoformat(),
-                "cutoff_date": request.cutoff_date,
-                "horizon": "1d",
-                "feature_columns": feature_columns,
-                "target_column": TARGET_COLUMN,
-                "n_train": n_train,
-                "n_test": n_test,
-                "train_min_date": train_min_date,
-                "train_max_date": train_max_date,
-                "test_min_date": test_min_date,
-                "test_max_date": test_max_date,
-            }
+            metadata = build_run_manifest(
+                run_id=run_dir_name,
+                model_id=model_type,
+                feature_columns=feature_columns,
+                target=TARGET_COLUMN,
+                split_policy={
+                    "name": "time_split",
+                    "cutoff_date": request.cutoff_date,
+                    "date_col": "date",
+                    "inclusive_test": True,
+                },
+                dates={
+                    "requested_start": start_date.isoformat(),
+                    "requested_end": request.end or end_date.isoformat(),
+                    "train_min": train_min_date,
+                    "train_max": train_max_date,
+                    "test_min": test_min_date,
+                    "test_max": test_max_date,
+                },
+                params={
+                    "tickers": tickers,
+                    "interval": resolved_interval,
+                    "years": int(request.years),
+                    "horizon": "1d",
+                },
+                artifact_paths={
+                    "run_dir": run_dir,
+                    "metrics": str(Path(run_dir) / "metrics.json"),
+                    "manifest": str(Path(run_dir) / "manifest.json"),
+                    "predictions": str(Path(run_dir) / "predictions.csv"),
+                },
+                created_at=created_at_utc,
+            )
 
             self._model_registry.save_metrics(
                 run_dir=run_dir,

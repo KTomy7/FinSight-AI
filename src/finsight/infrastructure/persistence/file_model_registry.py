@@ -37,7 +37,7 @@ class LocalFileModelRegistry(ModelRegistryPort):
         self._write_json(Path(run_dir) / "metrics.json", metrics)
 
     def save_metadata(self, *, run_dir: str, metadata: Mapping[str, Any]) -> None:
-        self._write_json(Path(run_dir) / "metadata.json", metadata)
+        self._write_json(Path(run_dir) / "manifest.json", metadata)
 
     def save_predictions(self, *, run_dir: str, predictions: object) -> None:
         output_path = Path(run_dir) / "predictions.csv"
