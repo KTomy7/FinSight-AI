@@ -60,7 +60,7 @@ def render():
     col1, col2 = st.columns(2)
 
     with col1:
-        ticker = st.selectbox("Choose a stock ticker", ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NFLX"])
+        ticker = st.selectbox("Choose a stock ticker", list(_SETTINGS.training.training_tickers))
 
     model_defaults = _SETTINGS.model_defaults
     id_to_label = model_defaults.id_to_label()
