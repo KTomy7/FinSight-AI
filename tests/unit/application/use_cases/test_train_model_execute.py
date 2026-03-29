@@ -202,4 +202,16 @@ def test_execute_rejects_model_type_not_enabled_by_configuration(tmp_path) -> No
     assert stub.calls == []
 
 
+def test_constructor_rejects_configured_model_types_not_supported_by_model_port() -> None:
+    with pytest.raises(ValueError, match=r"Unsupported model type\(s\)"):
+        TrainModel(
+            fetch_market_data=cast(FetchMarketData, cast(object, _StubFetchMarketData({}))),
+            feature_store=PandasFeatureStore(),
+            model=NaiveBaselineModel(),
+            model_registry=LocalFileModelRegistry(),
+            training_tickers=("AAPL",),
+            supported_model_types=("ridge",),
+        )
+
+
 

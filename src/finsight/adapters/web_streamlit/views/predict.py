@@ -64,18 +64,41 @@ def render():
 
     model_defaults = _SETTINGS.model_defaults
     id_to_label = model_defaults.id_to_label()
-    label_to_id = model_defaults.label_to_id()
-    model_labels = list(model_defaults.labels())
-    default_model_label = id_to_label[model_defaults.default_model_id]
+    prediction_model_ids = list(model_defaults.prediction_model_ids())
+    prediction_model_labels = [id_to_label[model_id] for model_id in prediction_model_ids]
+    has_prediction_models = bool(prediction_model_ids)
+
+    if model_defaults.default_model_id in prediction_model_ids:
+        default_model_id = model_defaults.default_model_id
+    elif prediction_model_ids:
+        default_model_id = prediction_model_ids[0]
+    else:
+        default_model_id = None
+
+    selected_model_id: str | None = None
 
     # TODO: selected_model_id will be passed to the forecast use case.
     with col2:
-        selected_label = st.selectbox(
-            "Choose a prediction model",
-            model_labels,
-            index=model_labels.index(default_model_label),
+        if has_prediction_models:
+            selected_index = prediction_model_ids.index(default_model_id)
+            selected_label = st.selectbox(
+                "Choose a prediction model",
+                prediction_model_labels,
+                index=selected_index,
+            )
+            selected_model_id = prediction_model_ids[prediction_model_labels.index(selected_label)]
+        else:
+            st.selectbox(
+                "Choose a prediction model",
+                ["No prediction-enabled models configured"],
+                index=0,
+                disabled=True,
+            )
+
+    if not has_prediction_models:
+        st.warning(
+            "No prediction-enabled models are configured."
         )
-    selected_model_id = label_to_id[selected_label]
 
     # TODO: horizon will be used by the forecast use case.
     horizon = st.slider(
@@ -88,7 +111,11 @@ def render():
 
     fetch_col, predict_col = st.columns(2)
     fetch_data_button = fetch_col.button("Fetch Historical Data", use_container_width=True)
-    predict_button = predict_col.button("Run Prediction", use_container_width=True)
+    predict_button = predict_col.button(
+        "Run Prediction",
+        use_container_width=True,
+        disabled=not has_prediction_models,
+    )
 
     if fetch_data_button:
         try:
@@ -96,7 +123,7 @@ def render():
         except Exception as e:
             st.error(f"Failed to fetch data: {e}")
 
-    if predict_button:
+    if predict_button and selected_model_id is not None:
         st.info(
             f"Prediction flow is not implemented yet (selected model_id='{selected_model_id}')."
         )

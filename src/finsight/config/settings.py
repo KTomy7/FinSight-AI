@@ -203,13 +203,12 @@ def get_settings(config_path: Path | None = None) -> Settings:
         data_ttl_seconds=_as_int(cache_raw.get("data_ttl_seconds"), 900, minimum=1),
     )
 
-    raw_catalog = model_raw.get("catalog")
-    if raw_catalog is None:
-        catalog = _parse_model_catalog(raw_catalog, DEFAULT_MODEL_CATALOG)
-    else:
+    if "catalog" in model_raw:
         # When a catalog is explicitly provided (even if empty/invalid), do not
         # fall back to DEFAULT_MODEL_CATALOG so that validation can detect it.
-        catalog = _parse_model_catalog(raw_catalog, ())
+        catalog = _parse_model_catalog(model_raw.get("catalog"), ())
+    else:
+        catalog = DEFAULT_MODEL_CATALOG
     if not catalog:
         raise ValueError("model_defaults.catalog must contain at least one model entry.")
 
@@ -225,6 +224,13 @@ def get_settings(config_path: Path | None = None) -> Settings:
     if default_model_id not in model_ids:
         raise ValueError(
             f"Unknown model_defaults.default_model_id '{default_model_id}'. Supported model ids: {model_ids}."
+        )
+
+    training_model_ids = tuple(entry.id for entry in catalog if entry.supports_training)
+    if not training_model_ids:
+        raise ValueError(
+            "model_defaults.catalog must enable training for at least one model "
+            "(set supports_training=true)."
         )
 
     horizon_min = _as_int(model_raw.get("horizon_min"), 7, minimum=1)

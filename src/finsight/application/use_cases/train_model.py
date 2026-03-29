@@ -79,12 +79,21 @@ class TrainModel:
         supported_model_types: tuple[str, ...] | list[str] | None = None,
         default_interval: str = "1d",
     ) -> None:
+        model_supported_model_types = self._as_tuple(model.supported_model_types())
+        configured_supported_model_types = (
+            model_supported_model_types
+            if supported_model_types is None
+            else self._as_tuple(supported_model_types)
+        )
+        _validate_model_types(list(configured_supported_model_types))
+        _validate_supported_model_types(list(configured_supported_model_types), model_supported_model_types)
+
         self._fetch_market_data = fetch_market_data
         self._feature_store = feature_store
         self._model = model
         self._model_registry = model_registry
         self._training_tickers = tuple(training_tickers)
-        self._supported_model_types = tuple(supported_model_types) if supported_model_types is not None else None
+        self._supported_model_types = configured_supported_model_types
         self._default_interval = default_interval
 
     def execute(self, request: TrainModelRequest) -> TrainModelResponse:
@@ -93,11 +102,7 @@ class TrainModel:
 
         tickers = _get_training_tickers(self._training_tickers)
         model_types = _validate_model_types(request.model_types)
-        if self._supported_model_types is None:
-            supported_model_types = self._model.supported_model_types()
-        else:
-            supported_model_types = self._supported_model_types
-        _validate_supported_model_types(model_types, supported_model_types)
+        _validate_supported_model_types(model_types, self._supported_model_types)
         resolved_interval = request.interval or self._default_interval
 
         end_date = _parse_iso_date(request.end) if request.end else date.today()
@@ -205,5 +210,9 @@ class TrainModel:
             metrics[model_type] = enriched_metrics
 
         return TrainModelResponse(run_dirs=run_dirs, metrics=metrics)
+
+    @staticmethod
+    def _as_tuple(values: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+        return tuple(values)
 
 

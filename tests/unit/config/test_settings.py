@@ -75,6 +75,39 @@ model_defaults:
         get_settings(config_path)
 
 
+def test_get_settings_rejects_explicit_null_model_catalog(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+model_defaults:
+  catalog: null
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="model_defaults.catalog must contain at least one model entry"):
+        get_settings(config_path)
+
+
+def test_get_settings_rejects_model_catalog_without_training_enabled_models(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        """
+model_defaults:
+  catalog:
+    - id: ridge
+      label: Ridge Regression
+      supports_training: false
+      supports_prediction: true
+  default_model_id: ridge
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must enable training for at least one model"):
+        get_settings(config_path)
+
+
 def test_get_settings_uses_default_model_catalog_when_missing(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text("stock_data: {}", encoding="utf-8")
