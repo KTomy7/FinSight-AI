@@ -63,14 +63,19 @@ def render():
         ticker = st.selectbox("Choose a stock ticker", ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NFLX"])
 
     model_defaults = _SETTINGS.model_defaults
+    id_to_label = model_defaults.id_to_label()
+    label_to_id = model_defaults.label_to_id()
+    model_labels = list(model_defaults.labels())
+    default_model_label = id_to_label[model_defaults.default_model_id]
 
-    # TODO: model_choice will be used by the forecast use case.
+    # TODO: selected_model_id will be passed to the forecast use case.
     with col2:
-        model_choice = st.selectbox(
+        selected_label = st.selectbox(
             "Choose a prediction model",
-            list(model_defaults.options),
-            index=list(model_defaults.options).index(model_defaults.default_model),
+            model_labels,
+            index=model_labels.index(default_model_label),
         )
+    selected_model_id = label_to_id[selected_label]
 
     # TODO: horizon will be used by the forecast use case.
     horizon = st.slider(
@@ -93,5 +98,5 @@ def render():
 
     if predict_button:
         st.info(
-            "Prediction flow is not implemented yet."
+            f"Prediction flow is not implemented yet (selected model_id='{selected_model_id}')."
         )

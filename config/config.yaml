@@ -25,11 +25,20 @@ cache:
 # Model Defaults (UI + app defaults)
 # ====================================
 model_defaults:
-  options:
-    - "x model"
-    - "y model"
-    - "z model"
-  default_model: "x model"
+  catalog:
+    - id: "naive_zero"
+      label: "Naive (Zero)"
+      supports_training: true
+      supports_prediction: true
+    - id: "naive_mean"
+      label: "Naive (Mean)"
+      supports_training: true
+      supports_prediction: true
+    - id: "ridge"
+      label: "Ridge Regression"
+      supports_training: false
+      supports_prediction: false
+  default_model_id: "naive_zero"
   horizon_min: 7
   horizon_max: 90
   default_horizon: 30

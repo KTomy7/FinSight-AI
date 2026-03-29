@@ -76,6 +76,7 @@ class TrainModel:
         model: ModelPort,
         model_registry: ModelRegistryPort,
         training_tickers: tuple[str, ...] | list[str],
+        supported_model_types: tuple[str, ...] | list[str] | None = None,
         default_interval: str = "1d",
     ) -> None:
         self._fetch_market_data = fetch_market_data
@@ -83,6 +84,7 @@ class TrainModel:
         self._model = model
         self._model_registry = model_registry
         self._training_tickers = tuple(training_tickers)
+        self._supported_model_types = tuple(supported_model_types) if supported_model_types is not None else None
         self._default_interval = default_interval
 
     def execute(self, request: TrainModelRequest) -> TrainModelResponse:
@@ -91,7 +93,8 @@ class TrainModel:
 
         tickers = _get_training_tickers(self._training_tickers)
         model_types = _validate_model_types(request.model_types)
-        _validate_supported_model_types(model_types, self._model.supported_model_types())
+        supported_model_types = self._supported_model_types or self._model.supported_model_types()
+        _validate_supported_model_types(model_types, supported_model_types)
         resolved_interval = request.interval or self._default_interval
 
         end_date = _parse_iso_date(request.end) if request.end else date.today()
