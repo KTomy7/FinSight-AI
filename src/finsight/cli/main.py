@@ -13,7 +13,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     settings = get_settings()
-    tickers = ", ".join(settings.training.training_tickers)
+    tickers = ", ".join(settings.ticker_catalog.symbols())
     training_model_ids = list(settings.model_defaults.training_model_ids())
     train_parser = subparsers.add_parser(
         "train",
