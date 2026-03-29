@@ -127,27 +127,27 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
 
     for model_type, run_dir in (("naive_zero", naive_zero_dir), ("naive_mean", naive_mean_dir)):
         metrics_path = run_dir / "metrics.json"
-        metadata_path = run_dir / "manifest.json"
+        manifest_path = run_dir / "manifest.json"
         predictions_path = run_dir / "predictions.csv"
 
         assert metrics_path.exists()
-        assert metadata_path.exists()
+        assert manifest_path.exists()
         assert predictions_path.exists()
 
         metrics_json = json.loads(metrics_path.read_text(encoding="utf-8"))
-        metadata_json = json.loads(metadata_path.read_text(encoding="utf-8"))
+        manifest_json = json.loads(manifest_path.read_text(encoding="utf-8"))
         predictions_df = pd.read_csv(predictions_path)
 
-        assert set(REQUIRED_MANIFEST_KEYS).issubset(metadata_json)
-        assert metadata_json["model_id"] == model_type
-        assert metadata_json["run_id"] == run_dir.name
-        assert metadata_json["params"]["tickers"] == ["AAPL", "JPM"]
-        assert metadata_json["params"]["interval"] == "1d"
-        assert metadata_json["target"] == "target_ret_1d"
-        assert metadata_json["split_policy"]["name"] == "time_split"
-        assert metadata_json["split_policy"]["cutoff_date"] == "2025-06-01"
-        assert metadata_json["artifact_paths"]["manifest"].endswith("manifest.json")
-        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", metadata_json["created_at"])
+        assert set(REQUIRED_MANIFEST_KEYS).issubset(manifest_json)
+        assert manifest_json["model_id"] == model_type
+        assert manifest_json["run_id"] == run_dir.name
+        assert manifest_json["params"]["tickers"] == ["AAPL", "JPM"]
+        assert manifest_json["params"]["interval"] == "1d"
+        assert manifest_json["target"] == "target_ret_1d"
+        assert manifest_json["split_policy"]["name"] == "time_split"
+        assert manifest_json["split_policy"]["cutoff_date"] == "2025-06-01"
+        assert manifest_json["artifact_paths"]["manifest"].endswith("manifest.json")
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", manifest_json["created_at"])
         for date_key in (
             "requested_start",
             "requested_end",
@@ -156,7 +156,7 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
             "test_min",
             "test_max",
         ):
-            assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", metadata_json["dates"][date_key])
+            assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", manifest_json["dates"][date_key])
 
         assert metrics_json["n_train"] > 0
         assert metrics_json["n_test"] > 0
