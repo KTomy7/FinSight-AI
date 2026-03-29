@@ -29,16 +29,45 @@ class CacheSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelCatalogEntry:
+    id: str
+    label: str
+    supports_training: bool = True
+    supports_prediction: bool = True
+
+
+DEFAULT_MODEL_CATALOG: tuple[ModelCatalogEntry, ...] = (
+    ModelCatalogEntry(id="naive_zero", label="Naive (Zero)", supports_training=True, supports_prediction=True),
+    ModelCatalogEntry(id="naive_mean", label="Naive (Mean)", supports_training=True, supports_prediction=True),
+    ModelCatalogEntry(id="ridge", label="Ridge Regression", supports_training=False, supports_prediction=False),
+)
+
+
+@dataclass(frozen=True, slots=True)
 class ModelDefaults:
-    options: tuple[str, ...] = (
-        "Linear Regression",
-        "Random Forest",
-        "LSTM (Neural Network)",
-    )
-    default_model: str = "Linear Regression"
+    catalog: tuple[ModelCatalogEntry, ...] = DEFAULT_MODEL_CATALOG
+    default_model_id: str = "naive_zero"
     horizon_min: int = 7
     horizon_max: int = 90
     default_horizon: int = 30
+
+    def model_ids(self) -> tuple[str, ...]:
+        return tuple(entry.id for entry in self.catalog)
+
+    def labels(self) -> tuple[str, ...]:
+        return tuple(entry.label for entry in self.catalog)
+
+    def id_to_label(self) -> dict[str, str]:
+        return {entry.id: entry.label for entry in self.catalog}
+
+    def label_to_id(self) -> dict[str, str]:
+        return {entry.label: entry.id for entry in self.catalog}
+
+    def training_model_ids(self) -> tuple[str, ...]:
+        return tuple(entry.id for entry in self.catalog if entry.supports_training)
+
+    def prediction_model_ids(self) -> tuple[str, ...]:
+        return tuple(entry.id for entry in self.catalog if entry.supports_prediction)
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +145,29 @@ def _as_tuple_of_str(value: Any, default: tuple[str, ...]) -> tuple[str, ...]:
     return default
 
 
+def _parse_model_catalog(value: Any, default: tuple[ModelCatalogEntry, ...]) -> tuple[ModelCatalogEntry, ...]:
+    if not isinstance(value, (list, tuple)):
+        return default
+
+    parsed_entries: list[ModelCatalogEntry] = []
+    for raw_entry in value:
+        entry_raw = _as_mapping(raw_entry)
+        model_id = _as_str(entry_raw.get("id"), "")
+        label = _as_str(entry_raw.get("label"), "")
+        if not model_id:
+            continue
+        parsed_entries.append(
+            ModelCatalogEntry(
+                id=model_id,
+                label=label or model_id,
+                supports_training=_as_bool(entry_raw.get("supports_training"), True),
+                supports_prediction=_as_bool(entry_raw.get("supports_prediction"), True),
+            )
+        )
+
+    return tuple(parsed_entries)
+
+
 @lru_cache(maxsize=1)
 def get_settings(config_path: Path | None = None) -> Settings:
     path = config_path or _default_config_path()
@@ -151,25 +203,43 @@ def get_settings(config_path: Path | None = None) -> Settings:
         data_ttl_seconds=_as_int(cache_raw.get("data_ttl_seconds"), 900, minimum=1),
     )
 
-    options = _as_tuple_of_str(
-        model_raw.get("options"),
-        (
-            "Linear Regression",
-            "Random Forest",
-            "LSTM (Neural Network)",
-        ),
-    )
-    default_model = _as_str(model_raw.get("default_model"), options[0])
-    if default_model not in options:
-        default_model = options[0]
+    if "catalog" in model_raw:
+        # When a catalog is explicitly provided (even if empty/invalid), do not
+        # fall back to DEFAULT_MODEL_CATALOG so that validation can detect it.
+        catalog = _parse_model_catalog(model_raw.get("catalog"), ())
+    else:
+        catalog = DEFAULT_MODEL_CATALOG
+    if not catalog:
+        raise ValueError("model_defaults.catalog must contain at least one model entry.")
+
+    model_ids = tuple(entry.id for entry in catalog)
+    if len(set(model_ids)) != len(model_ids):
+        raise ValueError("model_defaults.catalog contains duplicate model ids.")
+
+    labels = tuple(entry.label for entry in catalog)
+    if len(set(labels)) != len(labels):
+        raise ValueError("model_defaults.catalog contains duplicate model labels.")
+
+    default_model_id = _as_str(model_raw.get("default_model_id"), model_ids[0])
+    if default_model_id not in model_ids:
+        raise ValueError(
+            f"Unknown model_defaults.default_model_id '{default_model_id}'. Supported model ids: {model_ids}."
+        )
+
+    training_model_ids = tuple(entry.id for entry in catalog if entry.supports_training)
+    if not training_model_ids:
+        raise ValueError(
+            "model_defaults.catalog must enable training for at least one model "
+            "(set supports_training=true)."
+        )
 
     horizon_min = _as_int(model_raw.get("horizon_min"), 7, minimum=1)
     horizon_max = _as_int(model_raw.get("horizon_max"), 90, minimum=horizon_min)
     default_horizon = _as_int(model_raw.get("default_horizon"), 30, minimum=horizon_min, maximum=horizon_max)
 
     model_settings = ModelDefaults(
-        options=options,
-        default_model=default_model,
+        catalog=catalog,
+        default_model_id=default_model_id,
         horizon_min=horizon_min,
         horizon_max=horizon_max,
         default_horizon=default_horizon,

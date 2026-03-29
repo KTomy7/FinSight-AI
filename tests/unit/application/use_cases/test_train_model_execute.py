@@ -176,4 +176,42 @@ def test_execute_rejects_unsupported_model_types_from_model_port(tmp_path) -> No
     assert stub.calls == []
 
 
+def test_execute_rejects_model_type_not_enabled_by_configuration(tmp_path) -> None:
+    tickers = ("AAPL",)
+    stub = _StubFetchMarketData({ticker: _make_ohlcv_series(ticker) for ticker in tickers})
+    train_model = TrainModel(
+        fetch_market_data=cast(FetchMarketData, cast(object, stub)),
+        feature_store=PandasFeatureStore(),
+        model=NaiveBaselineModel(),
+        model_registry=LocalFileModelRegistry(),
+        training_tickers=tickers,
+        supported_model_types=("naive_zero",),
+    )
+
+    with pytest.raises(ValueError, match=r"Unsupported model type\(s\)"):
+        train_model.execute(
+            TrainModelRequest(
+                cutoff_date="2025-06-01",
+                years=2,
+                end="2026-03-17",
+                model_types=["naive_mean"],
+                artifacts_dir=str(tmp_path / "runs"),
+            )
+        )
+
+    assert stub.calls == []
+
+
+def test_constructor_rejects_configured_model_types_not_supported_by_model_port() -> None:
+    with pytest.raises(ValueError, match=r"Unsupported model type\(s\)"):
+        TrainModel(
+            fetch_market_data=cast(FetchMarketData, cast(object, _StubFetchMarketData({}))),
+            feature_store=PandasFeatureStore(),
+            model=NaiveBaselineModel(),
+            model_registry=LocalFileModelRegistry(),
+            training_tickers=("AAPL",),
+            supported_model_types=("ridge",),
+        )
+
+
 

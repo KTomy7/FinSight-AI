@@ -12,7 +12,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="finsight")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    tickers = ", ".join(get_settings().training.training_tickers)
+    settings = get_settings()
+    tickers = ", ".join(settings.training.training_tickers)
+    training_model_ids = list(settings.model_defaults.training_model_ids())
     train_parser = subparsers.add_parser(
         "train",
         help=f"Train/evaluate baseline models on fixed tickers: {tickers}",
@@ -23,8 +25,8 @@ def _build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument(
         "--model-types",
         nargs="+",
-        default=["naive_zero", "naive_mean"],
-        help="Model types to evaluate",
+        default=training_model_ids,
+        help=f"Model IDs to evaluate (defaults: {', '.join(training_model_ids)})",
     )
     train_parser.add_argument(
         "--artifacts-dir",

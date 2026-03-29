@@ -41,6 +41,7 @@ def build_container() -> AppContainer:
         model=model,
         model_registry=model_registry,
         training_tickers=settings.training.training_tickers,
+        supported_model_types=settings.model_defaults.training_model_ids(),
         default_interval=settings.stock_data.default_interval,
     )
 
