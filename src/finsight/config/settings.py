@@ -182,8 +182,10 @@ def _parse_model_catalog(value: Any, default: tuple[ModelCatalogEntry, ...]) -> 
 
 
 def _parse_ticker_catalog(value: Any, default: tuple[TickerCatalogEntry, ...]) -> tuple[TickerCatalogEntry, ...]:
-    if not isinstance(value, (list, tuple)):
+    if value is None:
         return default
+    if not isinstance(value, (list, tuple)):
+        raise ValueError("ticker_catalog must be a list or tuple of {symbol, company_name} objects.")
 
     parsed_entries: list[TickerCatalogEntry] = []
     for index, raw_entry in enumerate(value):

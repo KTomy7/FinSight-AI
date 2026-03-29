@@ -67,7 +67,7 @@ def render():
         ticker = st.selectbox(
             "Choose a stock ticker",
             ticker_symbols,
-            format_func=ticker_label_lookup.get,
+            format_func=lambda symbol: ticker_label_lookup.get(symbol, symbol),
         )
 
     model_defaults = _SETTINGS.model_defaults
