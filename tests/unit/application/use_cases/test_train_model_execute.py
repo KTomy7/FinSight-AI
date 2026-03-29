@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from typing import cast
@@ -9,6 +10,7 @@ import pytest
 import finsight.application.use_cases.train_model as train_model_module
 from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
 from finsight.application.use_cases.train_model import TrainModel, TrainModelRequest
+from finsight.application.contracts import REQUIRED_MANIFEST_KEYS
 from finsight.domain.entities import OHLCVSeries
 from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
 from finsight.domain.value_objects import DateRange, Interval, Ticker
@@ -125,7 +127,7 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
 
     for model_type, run_dir in (("naive_zero", naive_zero_dir), ("naive_mean", naive_mean_dir)):
         metrics_path = run_dir / "metrics.json"
-        metadata_path = run_dir / "metadata.json"
+        metadata_path = run_dir / "manifest.json"
         predictions_path = run_dir / "predictions.csv"
 
         assert metrics_path.exists()
@@ -136,10 +138,25 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
         metadata_json = json.loads(metadata_path.read_text(encoding="utf-8"))
         predictions_df = pd.read_csv(predictions_path)
 
-        assert metadata_json["model_type"] == model_type
+        assert set(REQUIRED_MANIFEST_KEYS).issubset(metadata_json)
+        assert metadata_json["model_id"] == model_type
         assert metadata_json["run_id"] == run_dir.name
-        assert metadata_json["tickers"] == ["AAPL", "JPM"]
-        assert metadata_json["interval"] == "1d"
+        assert metadata_json["params"]["tickers"] == ["AAPL", "JPM"]
+        assert metadata_json["params"]["interval"] == "1d"
+        assert metadata_json["target"] == "target_ret_1d"
+        assert metadata_json["split_policy"]["name"] == "time_split"
+        assert metadata_json["split_policy"]["cutoff_date"] == "2025-06-01"
+        assert metadata_json["artifact_paths"]["manifest"].endswith("manifest.json")
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", metadata_json["created_at"])
+        for date_key in (
+            "requested_start",
+            "requested_end",
+            "train_min",
+            "train_max",
+            "test_min",
+            "test_max",
+        ):
+            assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", metadata_json["dates"][date_key])
 
         assert metrics_json["n_train"] > 0
         assert metrics_json["n_test"] > 0
