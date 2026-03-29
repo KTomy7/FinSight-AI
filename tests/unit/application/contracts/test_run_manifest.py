@@ -130,3 +130,19 @@ def test_build_run_manifest_validates_on_create() -> None:
             artifact_paths=payload["artifact_paths"],
             created_at=payload["created_at"],
         )
+
+
+def test_build_run_manifest_rejects_feature_columns_string() -> None:
+    payload = _valid_manifest()
+    with pytest.raises(TypeError, match="feature_columns"):
+        build_run_manifest(
+            run_id=payload["run_id"],
+            model_id=payload["model_id"],
+            feature_columns="ret_1d",
+            target=payload["target"],
+            split_policy=payload["split_policy"],
+            dates=payload["dates"],
+            params=payload["params"],
+            artifact_paths=payload["artifact_paths"],
+            created_at=payload["created_at"],
+        )
