@@ -2,10 +2,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from typing import TYPE_CHECKING
 
-from finsight.application.use_cases.fetch_market_data import (
-    FetchMarketData,
-    FetchMarketDataRequest,
-)
+from finsight.application.dto import FetchMarketDataRequest
+from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.adapters.web_streamlit.ticker_options import build_ticker_select_items
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings

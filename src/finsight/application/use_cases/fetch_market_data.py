@@ -1,30 +1,11 @@
 from __future__ import annotations
 
 import datetime
-from dataclasses import dataclass
-from typing import Any, Mapping, Optional, Union, cast
+from typing import Union
 
-from finsight.domain.entities import OHLCVSeries, StockSummary
+import finsight.application.dto as application_dto
 from finsight.domain.ports import MarketDataPort
 from finsight.domain.value_objects import DateRange, Interval, Ticker
-
-@dataclass(frozen=True, slots=True)
-class FetchMarketDataRequest:
-    ticker: str
-    start_date: Optional[str] = None   # ISO "YYYY-MM-DD"; defaults to today − lookback
-    end_date: Optional[str] = None     # ISO "YYYY-MM-DD"; defaults to today
-    interval: Optional[str] = None
-    include_summary: bool = True
-
-
-@dataclass(frozen=True, slots=True)
-class FetchMarketDataResult:
-    history: OHLCVSeries
-    summary: Optional[StockSummary]
-
-    @property
-    def summary_dict(self) -> Optional[Mapping[str, Any]]:
-        return None if self.summary is None else self.summary.data
 
 
 class FetchMarketData:
@@ -39,7 +20,10 @@ class FetchMarketData:
         self._default_lookback_days = default_lookback_days
         self._default_interval = default_interval
 
-    def execute(self, request: FetchMarketDataRequest) -> FetchMarketDataResult:
+    def execute(
+        self,
+        request: application_dto.FetchMarketDataRequest,
+    ) -> application_dto.FetchMarketDataResult:
         ticker = Ticker(request.ticker)
         interval = Interval(request.interval or self._default_interval)
 
@@ -68,10 +52,7 @@ class FetchMarketData:
             if isinstance(end, str):
                 # Parse end via DateRange using a guaranteed-low valid start so
                 # invalid end strings raise DateRange.end errors consistently.
-                end_as_date: datetime.date = cast(
-                    datetime.date,
-                    DateRange(start=datetime.date.min, end=end).end,
-                )
+                end_as_date: datetime.date = DateRange(start=datetime.date.min, end=end).end
             else:
                 end_as_date = end
             start = end_as_date - datetime.timedelta(days=self._default_lookback_days - 1)
@@ -88,4 +69,4 @@ class FetchMarketData:
             self._market_data.get_summary(ticker) if request.include_summary else None
         )
 
-        return FetchMarketDataResult(history=history, summary=summary)
+        return application_dto.FetchMarketDataResult(history=history, summary=summary)

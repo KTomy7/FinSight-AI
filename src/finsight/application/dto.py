@@ -3,11 +3,51 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, TypeVar
 
+from finsight.domain.entities import OHLCVSeries, StockSummary
+
 MetricValue = float | int | str
 SerializableScalar = str | int | float | bool | None
 SerializableRow = dict[str, SerializableScalar]
 
 _DTO = TypeVar("_DTO")
+
+
+@dataclass(frozen=True, slots=True)
+class FetchMarketDataRequest:
+    ticker: str
+    start_date: str | None = None  # ISO "YYYY-MM-DD"; defaults to today - lookback
+    end_date: str | None = None  # ISO "YYYY-MM-DD"; defaults to today
+    interval: str | None = None
+    include_summary: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticker": self.ticker,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "interval": self.interval,
+            "include_summary": self.include_summary,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> FetchMarketDataRequest:
+        return cls(
+            ticker=str(payload.get("ticker", "")),
+            start_date=payload.get("start_date"),
+            end_date=payload.get("end_date"),
+            interval=payload.get("interval"),
+            include_summary=bool(payload.get("include_summary", True)),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class FetchMarketDataResult:
+    history: OHLCVSeries
+    summary: StockSummary | None
+
+    @property
+    def summary_dict(self) -> Mapping[str, Any] | None:
+        return None if self.summary is None else self.summary.data
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,7 +132,7 @@ class TrainModelRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class TrainResult:
+class TrainModelResult:
     run_dirs: dict[str, str]
     metrics: dict[str, dict[str, MetricValue]]
     dataset_spec: DatasetSpec | None = None
@@ -107,7 +147,7 @@ class TrainResult:
         }
 
     @classmethod
-    def from_dict(cls, payload: Mapping[str, Any]) -> TrainResult:
+    def from_dict(cls, payload: Mapping[str, Any]) -> TrainModelResult:
         run_dirs_raw = payload.get("run_dirs", {})
         metrics_raw = payload.get("metrics", {})
         dataset_raw = payload.get("dataset_spec")
@@ -206,18 +246,15 @@ class BacktestResult:
         )
 
 
-# Backward-compatible alias for callers still expecting the old name.
-TrainModelResponse = TrainResult
-
-
 __all__ = [
     "BacktestResult",
     "DatasetSpec",
     "FeatureSpec",
+    "FetchMarketDataRequest",
+    "FetchMarketDataResult",
     "ForecastResult",
     "MetricValue",
     "TrainModelRequest",
-    "TrainModelResponse",
-    "TrainResult",
+    "TrainModelResult",
 ]
 

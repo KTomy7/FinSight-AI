@@ -5,7 +5,7 @@ from pathlib import Path
 
 from finsight.application.contracts import build_run_manifest
 import finsight.application.dto as application_dto
-from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
+from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
 TARGET_COLUMN = "target_ret_1d"
@@ -82,7 +82,7 @@ class TrainModel:
         self._supported_model_types = configured_supported_model_types
         self._default_interval = default_interval
 
-    def execute(self, request: application_dto.TrainModelRequest) -> application_dto.TrainModelResponse:
+    def execute(self, request: application_dto.TrainModelRequest) -> application_dto.TrainModelResult:
         if request.years <= 0:
             raise ValueError("years must be a positive integer.")
 
@@ -98,7 +98,7 @@ class TrainModel:
         series_list = []
         for ticker in tickers:
             result = self._fetch_market_data.execute(
-                FetchMarketDataRequest(
+                application_dto.FetchMarketDataRequest(
                     ticker=ticker,
                     start_date=start_date.isoformat(),
                     end_date=end_date.isoformat(),
@@ -209,7 +209,7 @@ class TrainModel:
             run_dirs[model_type] = run_dir
             metrics[model_type] = enriched_metrics
 
-        return application_dto.TrainModelResponse(run_dirs=run_dirs, metrics=metrics)
+        return application_dto.TrainModelResult(run_dirs=run_dirs, metrics=metrics)
 
     @staticmethod
     def _as_tuple(values: tuple[str, ...] | list[str]) -> tuple[str, ...]:
