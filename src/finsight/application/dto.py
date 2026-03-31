@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping, TypeVar
+from typing import Any, Mapping
 
 from finsight.domain.entities import OHLCVSeries, StockSummary
 
 MetricValue = float | int | str
 SerializableScalar = str | int | float | bool | None
 SerializableRow = dict[str, SerializableScalar]
-
-_DTO = TypeVar("_DTO")
 
 
 @dataclass(frozen=True, slots=True)
