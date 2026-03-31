@@ -165,13 +165,32 @@ class TrainModelRequest:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> TrainModelRequest:
+        # Handle cutoff_date without turning None into the literal string "None".
+        raw_cutoff = payload.get("cutoff_date")
+        if raw_cutoff is None:
+            cutoff_date = ""
+        elif isinstance(raw_cutoff, str):
+            cutoff_date = raw_cutoff.strip()
+        else:
+            cutoff_date = str(raw_cutoff)
+
+        # Handle artifacts_dir similarly, falling back to the default when missing/None/blank.
+        raw_artifacts_dir = payload.get("artifacts_dir")
+        if raw_artifacts_dir is None:
+            artifacts_dir = "artifacts/runs"
+        elif isinstance(raw_artifacts_dir, str):
+            artifacts_dir_candidate = raw_artifacts_dir.strip()
+            artifacts_dir = artifacts_dir_candidate or "artifacts/runs"
+        else:
+            artifacts_dir = str(raw_artifacts_dir)
+
         return cls(
-            cutoff_date=str(payload.get("cutoff_date", "")),
+            cutoff_date=cutoff_date,
             years=_safe_int(payload.get("years", 2), default=2),
             end=_optional_str(payload.get("end")),
             interval=_optional_str(payload.get("interval")),
             model_types=_string_list(payload.get("model_types"), default=["naive_zero", "naive_mean"]),
-            artifacts_dir=str(payload.get("artifacts_dir", "artifacts/runs")),
+            artifacts_dir=artifacts_dir,
         )
 
 
