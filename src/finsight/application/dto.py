@@ -144,11 +144,24 @@ class TrainModelRequest:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> TrainModelRequest:
+        years_raw = payload.get("years", 2)
+        years: int
+        try:
+            years = int(years_raw)
+        except (TypeError, ValueError):
+            years = 2
+
+        end_raw = payload.get("end")
+        end: str | None = None if end_raw is None else str(end_raw)
+
+        interval_raw = payload.get("interval")
+        interval: str | None = None if interval_raw is None else str(interval_raw)
+
         return cls(
             cutoff_date=str(payload.get("cutoff_date", "")),
-            years=int(payload.get("years", 2)),
-            end=payload.get("end"),
-            interval=payload.get("interval"),
+            years=years,
+            end=end,
+            interval=interval,
             model_types=[str(value) for value in payload.get("model_types", ["naive_zero", "naive_mean"])],
             artifacts_dir=str(payload.get("artifacts_dir", "artifacts/runs")),
         )
