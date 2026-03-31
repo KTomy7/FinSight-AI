@@ -111,11 +111,17 @@ class DatasetSpec:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> DatasetSpec:
+        raw_interval = payload.get("interval")
+        if raw_interval is None:
+            interval = "1d"
+        else:
+            interval_str = str(raw_interval).strip()
+            interval = interval_str or "1d"
         return cls(
             tickers=_string_tuple(payload.get("tickers")),
             start_date=_optional_str(payload.get("start_date")),
             end_date=_optional_str(payload.get("end_date")),
-            interval=str(payload.get("interval", "1d")),
+            interval=interval,
         )
 
 
