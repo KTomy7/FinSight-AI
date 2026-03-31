@@ -4,10 +4,10 @@ from finsight.application.dto import (
     BacktestResult,
     DatasetSpec,
     FeatureSpec,
+    FetchMarketDataRequest,
     ForecastResult,
     TrainModelRequest,
-    TrainModelResponse,
-    TrainResult,
+    TrainModelResult,
 )
 
 
@@ -27,8 +27,23 @@ def test_train_model_request_roundtrip() -> None:
     assert restored == request
 
 
-def test_train_result_roundtrip_with_specs() -> None:
-    result = TrainResult(
+def test_fetch_market_data_request_roundtrip() -> None:
+    request = FetchMarketDataRequest(
+        ticker="AAPL",
+        start_date="2026-01-01",
+        end_date="2026-03-31",
+        interval="1d",
+        include_summary=False,
+    )
+
+    payload = request.to_dict()
+    restored = FetchMarketDataRequest.from_dict(payload)
+
+    assert restored == request
+
+
+def test_train_model_result_roundtrip_with_specs() -> None:
+    result = TrainModelResult(
         run_dirs={"naive_zero": "artifacts/runs/2026-03-31T123000Z__naive_zero"},
         metrics={"naive_zero": {"mae": 0.1, "rmse": 0.2, "n_train": 100, "window": "2y"}},
         dataset_spec=DatasetSpec(
@@ -44,7 +59,7 @@ def test_train_result_roundtrip_with_specs() -> None:
     )
 
     payload = result.to_dict()
-    restored = TrainResult.from_dict(payload)
+    restored = TrainModelResult.from_dict(payload)
 
     assert restored == result
 
@@ -73,7 +88,7 @@ def test_forecast_and_backtest_results_are_serializable() -> None:
     assert BacktestResult.from_dict(backtest_payload) == backtest
 
 
-def test_train_model_response_alias_points_to_train_result() -> None:
-    response = TrainModelResponse(run_dirs={}, metrics={})
-    assert isinstance(response, TrainResult)
+def test_train_model_result_is_constructible() -> None:
+    result = TrainModelResult(run_dirs={}, metrics={})
+    assert isinstance(result, TrainModelResult)
 

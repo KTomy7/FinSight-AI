@@ -6,7 +6,8 @@ import datetime as dt
 import pandas as pd
 import numpy as np
 
-from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
+from finsight.application.dto import FetchMarketDataRequest
+from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.infrastructure.market_data.yfinance_provider import YFinanceMarketDataProvider
 from finsight.infrastructure.features.feature_pipeline import (
     FEATURE_COLUMNS,
