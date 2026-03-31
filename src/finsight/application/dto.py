@@ -10,6 +10,33 @@ SerializableScalar = str | int | float | bool | None
 SerializableRow = dict[str, SerializableScalar]
 
 
+def _optional_str(value: Any) -> str | None:
+    return None if value is None else str(value)
+
+
+def _safe_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _string_tuple(value: Any, default: tuple[str, ...] = ()) -> tuple[str, ...]:
+    if value is None:
+        return default
+    if isinstance(value, (list, tuple)):
+        return tuple(str(item) for item in value)
+    return default
+
+
+def _string_list(value: Any, default: list[str]) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, tuple):
+        return [str(item) for item in value]
+    return list(default)
+
+
 @dataclass(frozen=True, slots=True)
 class FetchMarketDataRequest:
     ticker: str
@@ -29,15 +56,9 @@ class FetchMarketDataRequest:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> FetchMarketDataRequest:
-        # Normalize date and interval fields to str | None as per the type hints.
-        raw_start = payload.get("start_date")
-        start_date = None if raw_start is None else str(raw_start)
-
-        raw_end = payload.get("end_date")
-        end_date = None if raw_end is None else str(raw_end)
-
-        raw_interval = payload.get("interval")
-        interval = None if raw_interval is None else str(raw_interval)
+        start_date = _optional_str(payload.get("start_date"))
+        end_date = _optional_str(payload.get("end_date"))
+        interval = _optional_str(payload.get("interval"))
 
         # Interpret include_summary more safely than bool(payload.get(...)):
         raw_include = payload.get("include_summary", True)
@@ -91,9 +112,9 @@ class DatasetSpec:
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> DatasetSpec:
         return cls(
-            tickers=tuple(str(value) for value in payload.get("tickers", [])),
-            start_date=payload.get("start_date"),
-            end_date=payload.get("end_date"),
+            tickers=_string_tuple(payload.get("tickers")),
+            start_date=_optional_str(payload.get("start_date")),
+            end_date=_optional_str(payload.get("end_date")),
             interval=str(payload.get("interval", "1d")),
         )
 
@@ -116,10 +137,10 @@ class FeatureSpec:
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> FeatureSpec:
         return cls(
-            feature_columns=tuple(str(value) for value in payload.get("feature_columns", [])),
+            feature_columns=_string_tuple(payload.get("feature_columns")),
             target_column=str(payload.get("target_column", "")),
             date_column=str(payload.get("date_column", "date")),
-            id_columns=tuple(str(value) for value in payload.get("id_columns", ["date", "ticker"])),
+            id_columns=_string_tuple(payload.get("id_columns"), default=("date", "ticker")),
         )
 
 
@@ -144,25 +165,12 @@ class TrainModelRequest:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> TrainModelRequest:
-        years_raw = payload.get("years", 2)
-        years: int
-        try:
-            years = int(years_raw)
-        except (TypeError, ValueError):
-            years = 2
-
-        end_raw = payload.get("end")
-        end: str | None = None if end_raw is None else str(end_raw)
-
-        interval_raw = payload.get("interval")
-        interval: str | None = None if interval_raw is None else str(interval_raw)
-
         return cls(
             cutoff_date=str(payload.get("cutoff_date", "")),
-            years=years,
-            end=end,
-            interval=interval,
-            model_types=[str(value) for value in payload.get("model_types", ["naive_zero", "naive_mean"])],
+            years=_safe_int(payload.get("years", 2), default=2),
+            end=_optional_str(payload.get("end")),
+            interval=_optional_str(payload.get("interval")),
+            model_types=_string_list(payload.get("model_types"), default=["naive_zero", "naive_mean"]),
             artifacts_dir=str(payload.get("artifacts_dir", "artifacts/runs")),
         )
 
@@ -241,9 +249,9 @@ class ForecastResult:
         return cls(
             model_id=str(payload.get("model_id", "")),
             ticker=str(payload.get("ticker", "")),
-            horizon_days=int(payload.get("horizon_days", 0)),
+            horizon_days=_safe_int(payload.get("horizon_days", 0), default=0),
             predictions=predictions,
-            generated_at=payload.get("generated_at"),
+            generated_at=_optional_str(payload.get("generated_at")),
         )
 
 

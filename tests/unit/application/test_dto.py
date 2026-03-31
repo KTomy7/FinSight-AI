@@ -92,3 +92,22 @@ def test_train_model_result_is_constructible() -> None:
     result = TrainModelResult(run_dirs={}, metrics={})
     assert isinstance(result, TrainModelResult)
 
+
+def test_from_dict_handles_non_sequence_fields_without_char_splitting() -> None:
+    dataset = DatasetSpec.from_dict({"tickers": "AAPL", "interval": "1d"})
+    features = FeatureSpec.from_dict({"feature_columns": "ret_1d", "target_column": "target_ret_1d"})
+
+    assert dataset.tickers == ()
+    assert features.feature_columns == ()
+
+
+def test_from_dict_parses_safe_defaults_for_invalid_scalar_types() -> None:
+    train_request = TrainModelRequest.from_dict({"years": "bad", "model_types": "naive_zero"})
+    forecast = ForecastResult.from_dict({"horizon_days": "bad", "generated_at": 123})
+
+    assert train_request.years == 2
+    assert train_request.model_types == ["naive_zero", "naive_mean"]
+    assert forecast.horizon_days == 0
+    assert forecast.generated_at == "123"
+
+
