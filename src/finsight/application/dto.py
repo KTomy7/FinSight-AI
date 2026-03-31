@@ -56,6 +56,12 @@ class FetchMarketDataRequest:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> FetchMarketDataRequest:
+        raw_ticker = payload.get("ticker", "")
+        if isinstance(raw_ticker, str):
+            ticker = raw_ticker.strip()
+        else:
+            ticker = ""
+
         start_date = _optional_str(payload.get("start_date"))
         end_date = _optional_str(payload.get("end_date"))
         interval = _optional_str(payload.get("interval"))
@@ -76,7 +82,7 @@ class FetchMarketDataRequest:
             include_summary = bool(raw_include)
 
         return cls(
-            ticker=str(payload.get("ticker", "")),
+            ticker=ticker,
             start_date=start_date,
             end_date=end_date,
             interval=interval,
