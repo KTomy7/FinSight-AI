@@ -29,12 +29,37 @@ class FetchMarketDataRequest:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> FetchMarketDataRequest:
+        # Normalize date and interval fields to str | None as per the type hints.
+        raw_start = payload.get("start_date")
+        start_date = None if raw_start is None else str(raw_start)
+
+        raw_end = payload.get("end_date")
+        end_date = None if raw_end is None else str(raw_end)
+
+        raw_interval = payload.get("interval")
+        interval = None if raw_interval is None else str(raw_interval)
+
+        # Interpret include_summary more safely than bool(payload.get(...)):
+        raw_include = payload.get("include_summary", True)
+        if isinstance(raw_include, bool):
+            include_summary = raw_include
+        elif isinstance(raw_include, str):
+            value = raw_include.strip().casefold()
+            if value in {"true", "1", "yes", "y", "on"}:
+                include_summary = True
+            elif value in {"false", "0", "no", "n", "off"}:
+                include_summary = False
+            else:
+                include_summary = bool(value)
+        else:
+            include_summary = bool(raw_include)
+
         return cls(
             ticker=str(payload.get("ticker", "")),
-            start_date=payload.get("start_date"),
-            end_date=payload.get("end_date"),
-            interval=payload.get("interval"),
-            include_summary=bool(payload.get("include_summary", True)),
+            start_date=start_date,
+            end_date=end_date,
+            interval=interval,
+            include_summary=include_summary,
         )
 
 
