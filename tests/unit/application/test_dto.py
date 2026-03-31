@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+from finsight.application.dto import (
+    BacktestResult,
+    DatasetSpec,
+    FeatureSpec,
+    ForecastResult,
+    TrainModelRequest,
+    TrainModelResponse,
+    TrainResult,
+)
+
+
+def test_train_model_request_roundtrip() -> None:
+    request = TrainModelRequest(
+        cutoff_date="2025-06-01",
+        years=2,
+        end="2026-03-17",
+        interval="1d",
+        model_types=["naive_zero", "naive_mean"],
+        artifacts_dir="artifacts/runs",
+    )
+
+    payload = request.to_dict()
+    restored = TrainModelRequest.from_dict(payload)
+
+    assert restored == request
+
+
+def test_train_result_roundtrip_with_specs() -> None:
+    result = TrainResult(
+        run_dirs={"naive_zero": "artifacts/runs/2026-03-31T123000Z__naive_zero"},
+        metrics={"naive_zero": {"mae": 0.1, "rmse": 0.2, "n_train": 100, "window": "2y"}},
+        dataset_spec=DatasetSpec(
+            tickers=("AAPL", "JPM"),
+            start_date="2024-03-18",
+            end_date="2026-03-17",
+            interval="1d",
+        ),
+        feature_spec=FeatureSpec(
+            feature_columns=("ret_1d", "mom_20d"),
+            target_column="target_ret_1d",
+        ),
+    )
+
+    payload = result.to_dict()
+    restored = TrainResult.from_dict(payload)
+
+    assert restored == result
+
+
+def test_forecast_and_backtest_results_are_serializable() -> None:
+    forecast = ForecastResult(
+        model_id="naive_mean",
+        ticker="AAPL",
+        horizon_days=7,
+        predictions=[
+            {"date": "2026-04-01", "y_pred": 0.01},
+            {"date": "2026-04-02", "y_pred": 0.012},
+        ],
+        generated_at="2026-03-31T12:30:00Z",
+    )
+    backtest = BacktestResult(
+        model_id="naive_mean",
+        metrics={"mae": 0.1, "rmse": 0.2},
+        folds=[{"fold": 1, "mae": 0.1}, {"fold": 2, "mae": 0.11}],
+    )
+
+    forecast_payload = forecast.to_dict()
+    backtest_payload = backtest.to_dict()
+
+    assert ForecastResult.from_dict(forecast_payload) == forecast
+    assert BacktestResult.from_dict(backtest_payload) == backtest
+
+
+def test_train_model_response_alias_points_to_train_result() -> None:
+    response = TrainModelResponse(run_dirs={}, metrics={})
+    assert isinstance(response, TrainResult)
+
