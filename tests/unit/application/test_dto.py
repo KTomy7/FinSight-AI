@@ -42,6 +42,23 @@ def test_fetch_market_data_request_roundtrip() -> None:
     assert restored == request
 
 
+def test_fetch_market_data_request_ticker_none_and_nonstring() -> None:
+    # None becomes ""
+    req1 = FetchMarketDataRequest.from_dict({"ticker": None})
+    assert req1.ticker == ""
+    # int/float become ""
+    req2 = FetchMarketDataRequest.from_dict({"ticker": 123})
+    assert req2.ticker == ""
+    req3 = FetchMarketDataRequest.from_dict({"ticker": 12.5})
+    assert req3.ticker == ""
+    # whitespace is stripped
+    req4 = FetchMarketDataRequest.from_dict({"ticker": "  AAPL  "})
+    assert req4.ticker == "AAPL"
+    # missing ticker is ""
+    req5 = FetchMarketDataRequest.from_dict({})
+    assert req5.ticker == ""
+
+
 def test_train_model_result_roundtrip_with_specs() -> None:
     result = TrainModelResult(
         run_dirs={"naive_zero": "artifacts/runs/2026-03-31T123000Z__naive_zero"},
@@ -91,4 +108,33 @@ def test_forecast_and_backtest_results_are_serializable() -> None:
 def test_train_model_result_is_constructible() -> None:
     result = TrainModelResult(run_dirs={}, metrics={})
     assert isinstance(result, TrainModelResult)
+
+
+def test_from_dict_handles_non_sequence_fields_without_char_splitting() -> None:
+    dataset = DatasetSpec.from_dict({"tickers": "AAPL", "interval": "1d"})
+    features = FeatureSpec.from_dict({"feature_columns": "ret_1d", "target_column": "target_ret_1d"})
+
+    assert dataset.tickers == ()
+    assert features.feature_columns == ()
+
+
+def test_from_dict_parses_safe_defaults_for_invalid_scalar_types() -> None:
+    train_request = TrainModelRequest.from_dict({"years": "bad", "model_types": "naive_zero"})
+    forecast = ForecastResult.from_dict({"horizon_days": "bad", "generated_at": 123})
+
+    assert train_request.years == 2
+    assert train_request.model_types == ["naive_zero", "naive_mean"]
+    assert forecast.horizon_days == 0
+    assert forecast.generated_at == "123"
+
+
+def test_forecast_result_from_dict_normalizes_identifiers() -> None:
+    forecast = ForecastResult.from_dict({"model_id": None, "ticker": "  AAPL  "})
+    assert forecast.model_id == ""
+    assert forecast.ticker == "AAPL"
+
+    forecast_nonstring = ForecastResult.from_dict({"model_id": 123, "ticker": None})
+    assert forecast_nonstring.model_id == ""
+    assert forecast_nonstring.ticker == ""
+
 

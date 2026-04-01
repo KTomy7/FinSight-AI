@@ -23,9 +23,9 @@ The module currently includes:
 - `ForecastResult`
 - `BacktestResult`
 
-All DTOs provide `to_dict()` and `from_dict()` methods for adapter/persistence serialization.
+DTOs that are used for adapter/persistence serialization provide `to_dict()` and `from_dict()` methods.
 
-## Migration path for existing TrainModelRequest/Response imports
+## Migration path for existing TrainModelRequest/TrainModelResult imports
 
 ### Preferred imports (canonical)
 
