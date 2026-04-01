@@ -50,7 +50,8 @@ Orchestrates domain objects and ports to fulfil business use cases.
 
 | Module | Contents |
 |---|---|
-| `use_cases/train_model.py` | `TrainModel` — builds features, evaluates models, writes run manifests |
+| `use_cases/train_model.py` | `TrainModel` — builds features, evaluates models, writes run artifacts |
+| `use_cases/load_model_run.py` | `LoadModelRun` — loads a stored training run by `model_run_id` |
 | `use_cases/fetch_market_data.py` | `FetchMarketData` — fetches and summarises OHLCV data |
 | `dto.py` | All request/response data transfer objects (see [DTO conventions](../conventions/naming-and-contracts.md)) |
 | `contracts/run_manifest.py` | `build_run_manifest`, `validate_run_manifest` — structured training-run records |
@@ -71,7 +72,7 @@ Provides concrete implementations of the domain ports.
 | `market_data/yfinance_provider.py` | `MarketDataPort` |
 | `features/feature_store.py` | `FeatureStorePort` |
 | `ml/sklearn/baseline.py` | `ModelPort` |
-| `persistence/file_model_registry.py` | `ModelRegistryPort` |
+| `ml/registry.py` | `ModelRegistryPort` |
 
 **Rules:**
 - Each implementation satisfies exactly one port protocol.
@@ -136,8 +137,17 @@ CLI / Streamlit view
        ├─ FeatureStorePort.split_train_test
        ├─ ModelPort.evaluate                            (NumPy/pandas baseline; scikit-learn optional)
        ├─ build_run_manifest + validate_run_manifest
-       ├─ ModelRegistryPort.save_manifest               (local filesystem)
+       ├─ ModelRegistryPort.save_run                    (local filesystem)
        └─ returns TrainModelResult
+```
+
+### Loading a saved model run
+
+```
+CLI / Streamlit view / future API adapter
+  └─ LoadModelRun.execute(LoadModelRunRequest)
+       └─ ModelRegistryPort.load_run                     (local filesystem)
+            └─ returns LoadModelRunResult
 ```
 
 ### Fetching market data

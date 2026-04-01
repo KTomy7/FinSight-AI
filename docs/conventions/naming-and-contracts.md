@@ -34,6 +34,8 @@ from finsight.application.use_cases.train_model import TrainModelRequest
 | `FeatureSpec` | nested result | `TrainModel` |
 | `TrainModelRequest` | request | `TrainModel` |
 | `TrainModelResult` | result | `TrainModel` |
+| `LoadModelRunRequest` | request | `LoadModelRun` |
+| `LoadModelRunResult` | result | `LoadModelRun` |
 | `ForecastResult` | result | future forecast use case |
 | `BacktestResult` | result | future backtest use case |
 
@@ -80,7 +82,7 @@ Domain ports (`src/finsight/domain/ports.py`) use `typing.Protocol` with
 | `MarketDataPort` | Fetch OHLCV series and stock summary |
 | `FeatureStorePort` | Build feature datasets, split train/test, inspect metadata |
 | `ModelPort` | Evaluate a model type; expose supported model types |
-| `ModelRegistryPort` | Persist run artifacts (metrics, manifest, predictions) |
+| `ModelRegistryPort` | Persist and load run artifacts by run id (model, metrics, manifest, predictions) |
 
 ### Rules for ports
 
