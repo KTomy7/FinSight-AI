@@ -120,9 +120,9 @@ to verify a manifest before persisting it.
 
 Settings are typed dataclasses loaded from `config/config.yaml`:
 
-- `Settings.model_defaults.catalog` — list of `ModelCatalogEntry` (id, label, supports_training, supports_prediction)
+- `Settings.model_defaults.catalog` — tuple of `ModelCatalogEntry` (id, label, supports_training, supports_prediction)
 - `Settings.model_defaults.default_model_id` — default model to use when none is specified
-- `Settings.ticker_catalog.entries` — list of `TickerCatalogEntry` (symbol, company_name)
+- `Settings.ticker_catalog.entries` — tuple of `TickerCatalogEntry` (symbol, company_name)
 - `Settings.ticker_catalog.symbols()` — convenience method returning just the symbol strings
 
 Always retrieve settings through `get_settings()` from `finsight.config.settings`.
