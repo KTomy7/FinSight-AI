@@ -144,16 +144,15 @@ class LocalModelRegistry(ModelRegistryPort):
         # Validate run_id to prevent path traversal attacks (e.g., "../../../etc/passwd")
         if ".." in model_run_id or "/" in model_run_id or "\\" in model_run_id:
             raise ValueError(f"Invalid model_run_id: contains path separators or traversal sequences: {model_run_id}")
-        
+
         resolved = (Path(artifact_root) / model_run_id).resolve()
         artifact_root_resolved = Path(artifact_root).resolve()
-        
+
         # Ensure resolved path stays under artifact_root
         try:
             resolved.relative_to(artifact_root_resolved)
         except ValueError:
             raise ValueError(f"Resolved run_dir escapes artifact_root: {resolved} not under {artifact_root_resolved}")
-        
         return resolved
 
     @staticmethod
