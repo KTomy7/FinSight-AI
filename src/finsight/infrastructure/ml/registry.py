@@ -131,7 +131,7 @@ class LocalModelRegistry(ModelRegistryPort):
             "metrics": self._read_json(metrics_path),
         }
 
-        if predictions_path.exists() and predictions_path.stat().st_size > 0:
+        if predictions_path.exists():
             try:
                 payload["predictions"] = pd.read_csv(predictions_path)
             except pd.errors.EmptyDataError:

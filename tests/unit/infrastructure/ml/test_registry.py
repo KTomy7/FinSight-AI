@@ -173,6 +173,29 @@ def test_load_run_treats_non_parseable_predictions_as_empty_dataframe(tmp_path: 
     assert loaded["predictions"].empty
 
 
+def test_load_run_treats_zero_byte_predictions_as_empty_dataframe(tmp_path: Path) -> None:
+    registry = LocalModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-04-01T151700Z__naive"
+
+    run_dir = Path(
+        registry.save_run(
+            artifact_root=str(artifact_root),
+            model_run_id=model_run_id,
+            model_artifact={"weights": [0.0]},
+            manifest={"run_id": model_run_id},
+            metrics={"mae": 0.03},
+        )
+    )
+    (run_dir / "predictions.csv").write_text("", encoding="utf-8")
+
+    loaded = registry.load_run(artifact_root=str(artifact_root), model_run_id=model_run_id)
+
+    assert "predictions" in loaded
+    assert isinstance(loaded["predictions"], pd.DataFrame)
+    assert loaded["predictions"].empty
+
+
 def test_load_run_without_predictions_file_omits_predictions_key(tmp_path: Path) -> None:
     registry = LocalModelRegistry()
     artifact_root = tmp_path / "runs"
