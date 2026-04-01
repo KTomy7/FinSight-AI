@@ -280,6 +280,20 @@ def test_create_run_dir_rejects_model_run_id_with_traversal(tmp_path: Path) -> N
         registry.create_run_dir(artifact_root=str(tmp_path / "runs"), model_run_id="../escape")
 
 
+def test_create_run_dir_increments_suffix_until_available(tmp_path: Path) -> None:
+    registry = LocalModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-03-28T101010Z__naive_zero"
+
+    (artifact_root / model_run_id).mkdir(parents=True)
+    (artifact_root / f"{model_run_id}_1").mkdir(parents=True)
+
+    run_dir = registry.create_run_dir(artifact_root=str(artifact_root), model_run_id=model_run_id)
+
+    assert Path(run_dir).name == f"{model_run_id}_2"
+    assert Path(run_dir).exists()
+
+
 def test_save_run_rejects_existing_non_model_artifacts(tmp_path: Path) -> None:
     registry = LocalModelRegistry()
     artifact_root = tmp_path / "runs"

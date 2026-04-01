@@ -88,22 +88,6 @@ class LocalModelRegistry(ModelRegistryPort):
         self._validate_manifest_consistency(manifest=manifest, model_run_id=model_run_id, run_dir=run_dir)
         run_dir.mkdir(parents=True, exist_ok=True)
 
-        # Validate that manifest identifiers (if present) are consistent with this run.
-        manifest_run_id = manifest.get("run_id")
-        if manifest_run_id is not None and manifest_run_id != model_run_id:
-            raise ValueError(
-                "Inconsistent run identifiers: "
-                f"model_run_id='{model_run_id}' does not match manifest.run_id='{manifest_run_id}'."
-            )
-
-        artifact_paths = manifest.get("artifact_paths")
-        if isinstance(artifact_paths, MappingABC):
-            manifest_run_dir = artifact_paths.get("run_dir")
-            if manifest_run_dir is not None and Path(manifest_run_dir) != run_dir:
-                raise ValueError(
-                    "Inconsistent run directories: "
-                    f"resolved run_dir='{run_dir}' does not match manifest.artifact_paths.run_dir='{manifest_run_dir}'."
-                )
         # Prevent silent overwrites: fail if any expected artifacts already exist in this run.
         model_path = run_dir / MODEL_FILE_NAME
         manifest_path = run_dir / MANIFEST_FILE_NAME
