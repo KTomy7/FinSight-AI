@@ -14,6 +14,10 @@ def _optional_str(value: Any) -> str | None:
     return None if value is None else str(value)
 
 
+def _safe_str(value: Any) -> str:
+    return value if isinstance(value, str) else ""
+
+
 def _safe_int(value: Any, default: int) -> int:
     try:
         return int(value)
@@ -277,9 +281,12 @@ class ForecastResult:
                 if isinstance(row, Mapping):
                     predictions.append({str(key): row[key] for key in row})
 
+        model_id = _safe_str(payload.get("model_id", "")).strip()
+        ticker = _safe_str(payload.get("ticker", "")).strip()
+
         return cls(
-            model_id=str(payload.get("model_id", "")),
-            ticker=str(payload.get("ticker", "")),
+            model_id=model_id,
+            ticker=ticker,
             horizon_days=_safe_int(payload.get("horizon_days", 0), default=0),
             predictions=predictions,
             generated_at=_optional_str(payload.get("generated_at")),

@@ -127,3 +127,14 @@ def test_from_dict_parses_safe_defaults_for_invalid_scalar_types() -> None:
     assert forecast.horizon_days == 0
     assert forecast.generated_at == "123"
 
+
+def test_forecast_result_from_dict_normalizes_identifiers() -> None:
+    forecast = ForecastResult.from_dict({"model_id": None, "ticker": "  AAPL  "})
+    assert forecast.model_id == ""
+    assert forecast.ticker == "AAPL"
+
+    forecast_nonstring = ForecastResult.from_dict({"model_id": 123, "ticker": None})
+    assert forecast_nonstring.model_id == ""
+    assert forecast_nonstring.ticker == ""
+
+

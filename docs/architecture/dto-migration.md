@@ -25,7 +25,7 @@ The module currently includes:
 
 DTOs that are used for adapter/persistence serialization provide `to_dict()` and `from_dict()` methods.
 
-## Migration path for existing TrainModelRequest/Response imports
+## Migration path for existing TrainModelRequest/TrainModelResult imports
 
 ### Preferred imports (new)
 
@@ -39,7 +39,7 @@ from finsight.application.dto import TrainModelRequest, TrainModelResult
 This path was temporary during migration and is no longer exported by
 `finsight.application.use_cases.train_model`.
 
-Use `finsight.application.dto` for all request/response DTO imports.
+Use `finsight.application.dto` for all use-case DTO imports.
 
 ## Suggested rollout
 
