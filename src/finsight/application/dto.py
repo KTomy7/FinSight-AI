@@ -148,10 +148,23 @@ class FeatureSpec:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> FeatureSpec:
+        raw_target = payload.get("target_column")
+        if raw_target is None:
+            target_column = ""
+        else:
+            target_column = str(raw_target).strip()
+
+        raw_date = payload.get("date_column")
+        if raw_date is None:
+            date_column = "date"
+        else:
+            date_str = str(raw_date).strip()
+            date_column = date_str or "date"
+
         return cls(
             feature_columns=_string_tuple(payload.get("feature_columns")),
-            target_column=str(payload.get("target_column", "")),
-            date_column=str(payload.get("date_column", "date")),
+            target_column=target_column,
+            date_column=date_column,
             id_columns=_string_tuple(payload.get("id_columns"), default=("date", "ticker")),
         )
 
