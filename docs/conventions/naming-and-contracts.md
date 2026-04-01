@@ -40,14 +40,14 @@ from finsight.application.use_cases.train_model import TrainModelRequest
 ### DTO rules
 
 - DTOs are **frozen dataclasses** (`@dataclass(frozen=True, slots=True)`).
-- Every DTO exposes `to_dict() -> dict[str, Any]` and a `from_dict(cls, payload)` classmethod.
+- DTOs that need serialization for adapters/persistence expose `to_dict() -> dict[str, Any]` and a `from_dict(cls, payload)` classmethod.
 - Field types use built-in Python types or domain entities — no infrastructure types.
 - Prefer `str | None` for optional dates (ISO `"YYYY-MM-DD"` format).
 
 ### Adding a new DTO
 
 1. Add the dataclass to `src/finsight/application/dto.py`.
-2. Follow the frozen-dataclass pattern with `to_dict` / `from_dict`.
+2. Follow the frozen-dataclass pattern, and if the DTO will be serialized by adapters or persistence, add `to_dict` / `from_dict` helpers.
 3. Update this file's catalogue table.
 4. Import the DTO in any use case or adapter that needs it.
 
