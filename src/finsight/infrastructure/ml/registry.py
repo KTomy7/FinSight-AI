@@ -22,11 +22,11 @@ class LocalModelRegistry(ModelRegistryPort):
     """Local filesystem-backed model registry rooted under artifacts/runs."""
 
     # Legacy API retained for compatibility with the current TrainModel flow.
-    def create_run_dir(self, *, artifact_root: str, run_id: str) -> str:
+    def create_run_dir(self, *, artifact_root: str, model_run_id: str) -> str:
         root = Path(artifact_root)
         root.mkdir(parents=True, exist_ok=True)
 
-        base_path = root / run_id
+        base_path = self._resolve_run_dir(artifact_root=artifact_root, model_run_id=model_run_id)
 
         try:
             base_path.mkdir(parents=True, exist_ok=False)
@@ -36,7 +36,10 @@ class LocalModelRegistry(ModelRegistryPort):
 
         suffix = 1
         while True:
-            candidate = Path(f"{base_path}_{suffix}")
+            candidate = self._resolve_run_dir(
+                artifact_root=artifact_root,
+                model_run_id=f"{model_run_id}_{suffix}",
+            )
             try:
                 candidate.mkdir(parents=True, exist_ok=False)
                 return str(candidate)
@@ -83,15 +86,21 @@ class LocalModelRegistry(ModelRegistryPort):
     ) -> str:
         run_dir = self._resolve_run_dir(artifact_root=artifact_root, model_run_id=model_run_id)
         run_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Prevent silent overwrites: fail if artifacts already exist in this run
+
+        # Prevent silent overwrites: fail if any expected artifacts already exist in this run.
         model_path = run_dir / MODEL_FILE_NAME
-        if model_path.exists():
-            raise FileExistsError(f"Run already exists for model_run_id='{model_run_id}' at {run_dir}. Use a unique model_run_id or delete the existing run.")
+        manifest_path = run_dir / MANIFEST_FILE_NAME
+        metrics_path = run_dir / METRICS_FILE_NAME
+        predictions_path = run_dir / PREDICTIONS_FILE_NAME
+        if any(path.exists() for path in (model_path, manifest_path, metrics_path, predictions_path)):
+            raise FileExistsError(
+                f"Run already exists for model_run_id='{model_run_id}' at {run_dir}. "
+                "Use a unique model_run_id or delete the existing run before saving."
+            )
 
         self._write_pickle(model_path, model_artifact)
-        self._write_json(run_dir / MANIFEST_FILE_NAME, manifest)
-        self._write_json(run_dir / METRICS_FILE_NAME, metrics)
+        self._write_json(manifest_path, manifest)
+        self._write_json(metrics_path, metrics)
 
         if predictions is not None:
             self.save_predictions(run_dir=str(run_dir), predictions=predictions)

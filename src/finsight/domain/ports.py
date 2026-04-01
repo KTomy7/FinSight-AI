@@ -63,7 +63,7 @@ class ModelPort(Protocol):
 
 @runtime_checkable
 class ModelRegistryPort(Protocol):
-    def create_run_dir(self, *, artifact_root: str, run_id: str) -> str:
+    def create_run_dir(self, *, artifact_root: str, model_run_id: str) -> str:
         raise NotImplementedError
 
     def save_metrics(self, *, run_dir: str, metrics: Mapping[str, float | int | str]) -> None:

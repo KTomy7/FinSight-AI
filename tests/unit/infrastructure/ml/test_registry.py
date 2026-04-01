@@ -250,6 +250,31 @@ def test_read_pickle_loads_when_artifact_root_not_enforced(tmp_path: Path) -> No
     assert loaded == payload
 
 
+def test_create_run_dir_rejects_model_run_id_with_traversal(tmp_path: Path) -> None:
+    registry = LocalModelRegistry()
+
+    with pytest.raises(ValueError, match="Invalid model_run_id"):
+        registry.create_run_dir(artifact_root=str(tmp_path / "runs"), model_run_id="../escape")
+
+
+def test_save_run_rejects_existing_non_model_artifacts(tmp_path: Path) -> None:
+    registry = LocalModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-04-01T160000Z__naive"
+    run_dir = artifact_root / model_run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "manifest.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(FileExistsError, match="Run already exists"):
+        registry.save_run(
+            artifact_root=str(artifact_root),
+            model_run_id=model_run_id,
+            model_artifact={"weights": [0.0]},
+            manifest={"run_id": model_run_id},
+            metrics={"mae": 0.1},
+        )
+
+
 def test_save_metrics_and_manifest_write_json_files(tmp_path: Path) -> None:
     registry = LocalModelRegistry()
     run_dir = tmp_path / "run"

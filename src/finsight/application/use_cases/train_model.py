@@ -145,7 +145,7 @@ class TrainModel:
             run_id = f"{run_prefix}__{model_type}"
             run_dir = self._model_registry.create_run_dir(
                 artifact_root=request.artifacts_dir,
-                run_id=run_id,
+                model_run_id=run_id,
             )
             run_dir_name = Path(run_dir).name
 

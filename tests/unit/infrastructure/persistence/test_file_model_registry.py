@@ -10,14 +10,14 @@ from finsight.infrastructure.ml.registry import LocalModelRegistry
 def test_create_run_dir_increments_suffix_until_available(tmp_path: Path) -> None:
     registry = LocalModelRegistry()
     artifact_root = tmp_path / "runs"
-    run_id = "2026-03-28T101010Z__naive_zero"
+    model_run_id = "2026-03-28T101010Z__naive_zero"
 
-    (artifact_root / run_id).mkdir(parents=True)
-    (artifact_root / f"{run_id}_1").mkdir(parents=True)
+    (artifact_root / model_run_id).mkdir(parents=True)
+    (artifact_root / f"{model_run_id}_1").mkdir(parents=True)
 
-    run_dir = registry.create_run_dir(artifact_root=str(artifact_root), run_id=run_id)
+    run_dir = registry.create_run_dir(artifact_root=str(artifact_root), model_run_id=model_run_id)
 
-    assert Path(run_dir).name == f"{run_id}_2"
+    assert Path(run_dir).name == f"{model_run_id}_2"
     assert Path(run_dir).exists()
 
 
