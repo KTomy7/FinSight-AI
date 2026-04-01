@@ -298,6 +298,34 @@ def test_save_run_rejects_existing_non_model_artifacts(tmp_path: Path) -> None:
         )
 
 
+def test_resolve_run_dir_preserves_relative_artifact_root() -> None:
+    run_dir = LocalModelRegistry._resolve_run_dir(
+        artifact_root="artifacts/runs",
+        model_run_id="2026-04-01T161000Z__naive",
+    )
+
+    assert run_dir == Path("artifacts/runs") / "2026-04-01T161000Z__naive"
+    assert not run_dir.is_absolute()
+
+
+def test_save_run_manifest_mismatch_does_not_create_run_dir(tmp_path: Path) -> None:
+    registry = LocalModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-04-01T162000Z__naive"
+    expected_run_dir = artifact_root / model_run_id
+
+    with pytest.raises(ValueError, match="Inconsistent run identifiers"):
+        registry.save_run(
+            artifact_root=str(artifact_root),
+            model_run_id=model_run_id,
+            model_artifact={"weights": [0.0]},
+            manifest={"run_id": "different-run-id"},
+            metrics={"mae": 0.1},
+        )
+
+    assert not expected_run_dir.exists()
+
+
 def test_save_metrics_and_manifest_write_json_files(tmp_path: Path) -> None:
     registry = LocalModelRegistry()
     run_dir = tmp_path / "run"

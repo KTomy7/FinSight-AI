@@ -85,6 +85,7 @@ class LocalModelRegistry(ModelRegistryPort):
         predictions: object | None = None,
     ) -> str:
         run_dir = self._resolve_run_dir(artifact_root=artifact_root, model_run_id=model_run_id)
+        self._validate_manifest_consistency(manifest=manifest, model_run_id=model_run_id, run_dir=run_dir)
         run_dir.mkdir(parents=True, exist_ok=True)
 
         # Prevent silent overwrites: fail if any expected artifacts already exist in this run.
@@ -144,17 +145,37 @@ class LocalModelRegistry(ModelRegistryPort):
         # Validate run_id to prevent path traversal attacks (e.g., "../../../etc/passwd")
         if ".." in model_run_id or "/" in model_run_id or "\\" in model_run_id:
             raise ValueError(f"Invalid model_run_id: contains path separators or traversal sequences: {model_run_id}")
-        
-        resolved = (Path(artifact_root) / model_run_id).resolve()
+
+        run_dir = Path(artifact_root) / model_run_id
+        resolved = run_dir.resolve()
         artifact_root_resolved = Path(artifact_root).resolve()
-        
+
         # Ensure resolved path stays under artifact_root
         try:
             resolved.relative_to(artifact_root_resolved)
         except ValueError:
             raise ValueError(f"Resolved run_dir escapes artifact_root: {resolved} not under {artifact_root_resolved}")
-        
-        return resolved
+
+        # Return a path anchored under the original artifact_root to preserve portability.
+        return run_dir
+
+    @staticmethod
+    def _validate_manifest_consistency(*, manifest: Mapping[str, Any], model_run_id: str, run_dir: Path) -> None:
+        manifest_run_id = manifest.get("run_id")
+        if manifest_run_id is not None and manifest_run_id != model_run_id:
+            raise ValueError(
+                "Inconsistent run identifiers: "
+                f"model_run_id='{model_run_id}' does not match manifest.run_id='{manifest_run_id}'."
+            )
+
+        artifact_paths = manifest.get("artifact_paths")
+        if isinstance(artifact_paths, MappingABC):
+            manifest_run_dir = artifact_paths.get("run_dir")
+            if manifest_run_dir is not None and Path(manifest_run_dir).resolve() != run_dir.resolve():
+                raise ValueError(
+                    "Inconsistent run directories: "
+                    f"resolved run_dir='{run_dir}' does not match manifest.artifact_paths.run_dir='{manifest_run_dir}'."
+                )
 
     @staticmethod
     def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
@@ -188,7 +209,7 @@ class LocalModelRegistry(ModelRegistryPort):
                 resolved.relative_to(artifact_root_resolved)
             except ValueError:
                 raise ValueError(f"Refusing to load pickle outside artifact_root: {resolved}")
-        
+
         with path.open("rb") as file_obj:
             return pickle.load(file_obj)
 
@@ -203,5 +224,4 @@ class LocalModelRegistry(ModelRegistryPort):
                 raise TypeError("Each prediction row must be a mapping.")
             normalized.append(dict(row))
         return normalized
-
 
