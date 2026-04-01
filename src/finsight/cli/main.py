@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from finsight.application.use_cases.train_model import TrainModelRequest
+from finsight.application.dto import TrainModelRequest
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
 from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE

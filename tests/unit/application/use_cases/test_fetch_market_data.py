@@ -8,7 +8,8 @@ import pandas as pd
 import pytest
 
 import finsight.application.use_cases.fetch_market_data as fetch_market_data_module
-from finsight.application.use_cases.fetch_market_data import FetchMarketData, FetchMarketDataRequest
+from finsight.application.dto import FetchMarketDataRequest
+from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.domain.entities import OHLCVSeries, StockSummary
 from finsight.domain.ports import MarketDataPort
 from finsight.domain.value_objects import DateRange, Interval, Ticker
