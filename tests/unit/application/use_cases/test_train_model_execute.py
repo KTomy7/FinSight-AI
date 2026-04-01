@@ -17,7 +17,7 @@ from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 from finsight.infrastructure.features import PandasFeatureStore
 from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
-from finsight.infrastructure.persistence import LocalFileModelRegistry
+from finsight.infrastructure.ml.registry import LocalModelRegistry
 
 
 class _StubFetchMarketData:
@@ -58,7 +58,7 @@ def test_execute_uses_expected_fetch_date_window_and_default_interval(tmp_path) 
         fetch_market_data=cast(FetchMarketData, cast(object, stub)),
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
-        model_registry=LocalFileModelRegistry(),
+        model_registry=LocalModelRegistry(),
         training_tickers=tickers,
         default_interval="1wk",
     )
@@ -101,7 +101,7 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
         fetch_market_data=cast(FetchMarketData, cast(object, stub)),
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
-        model_registry=LocalFileModelRegistry(),
+        model_registry=LocalModelRegistry(),
         training_tickers=tickers,
         default_interval="1d",
     )
@@ -127,10 +127,12 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
     assert response.run_dirs["naive_mean"] == str(naive_mean_dir)
 
     for model_type, run_dir in (("naive_zero", naive_zero_dir), ("naive_mean", naive_mean_dir)):
+        model_path = run_dir / "model.pkl"
         metrics_path = run_dir / "metrics.json"
         manifest_path = run_dir / "manifest.json"
         predictions_path = run_dir / "predictions.csv"
 
+        assert model_path.exists()
         assert metrics_path.exists()
         assert manifest_path.exists()
         assert predictions_path.exists()
@@ -168,6 +170,10 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
         assert response.metrics[model_type]["n_test"] == metrics_json["n_test"]
         assert set(SUPPORTED_METRIC_NAMES).issubset(response.metrics[model_type])
 
+        loaded_run = LocalModelRegistry().load_run(artifact_root=str(artifacts_root), model_run_id=run_dir.name)
+        assert loaded_run["model_artifact"]["predict_metadata"]["model_type"] == model_type
+        assert loaded_run["manifest"]["artifact_paths"]["model"].endswith("model.pkl")
+
 
 def test_execute_rejects_unsupported_model_types_from_model_port(tmp_path) -> None:
     tickers = ("AAPL",)
@@ -176,7 +182,7 @@ def test_execute_rejects_unsupported_model_types_from_model_port(tmp_path) -> No
         fetch_market_data=cast(FetchMarketData, cast(object, stub)),
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
-        model_registry=LocalFileModelRegistry(),
+        model_registry=LocalModelRegistry(),
         training_tickers=tickers,
     )
 
@@ -201,7 +207,7 @@ def test_execute_rejects_model_type_not_enabled_by_configuration(tmp_path) -> No
         fetch_market_data=cast(FetchMarketData, cast(object, stub)),
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
-        model_registry=LocalFileModelRegistry(),
+        model_registry=LocalModelRegistry(),
         training_tickers=tickers,
         supported_model_types=("naive_zero",),
     )
@@ -226,7 +232,7 @@ def test_constructor_rejects_configured_model_types_not_supported_by_model_port(
             fetch_market_data=cast(FetchMarketData, cast(object, _StubFetchMarketData({}))),
             feature_store=PandasFeatureStore(),
             model=NaiveBaselineModel(),
-            model_registry=LocalFileModelRegistry(),
+            model_registry=LocalModelRegistry(),
             training_tickers=("AAPL",),
             supported_model_types=("ridge",),
         )
@@ -239,7 +245,7 @@ def test_execute_rejects_non_positive_years(tmp_path) -> None:
         fetch_market_data=cast(FetchMarketData, cast(object, stub)),
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
-        model_registry=LocalFileModelRegistry(),
+        model_registry=LocalModelRegistry(),
         training_tickers=tickers,
     )
 

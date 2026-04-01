@@ -4,11 +4,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from finsight.infrastructure.persistence.file_model_registry import LocalFileModelRegistry
+from finsight.infrastructure.ml.registry import LocalModelRegistry
 
 
 def test_create_run_dir_increments_suffix_until_available(tmp_path: Path) -> None:
-    registry = LocalFileModelRegistry()
+    registry = LocalModelRegistry()
     artifact_root = tmp_path / "runs"
     run_id = "2026-03-28T101010Z__naive_zero"
 
@@ -22,7 +22,7 @@ def test_create_run_dir_increments_suffix_until_available(tmp_path: Path) -> Non
 
 
 def test_save_predictions_writes_csv_from_row_mappings(tmp_path: Path) -> None:
-    registry = LocalFileModelRegistry()
+    registry = LocalModelRegistry()
     run_dir = tmp_path / "run"
     run_dir.mkdir()
 
@@ -43,7 +43,7 @@ def test_save_predictions_writes_csv_from_row_mappings(tmp_path: Path) -> None:
 
 
 def test_save_predictions_writes_csv_from_dataframe(tmp_path: Path) -> None:
-    registry = LocalFileModelRegistry()
+    registry = LocalModelRegistry()
     run_dir = tmp_path / "run"
     run_dir.mkdir()
 
@@ -64,7 +64,7 @@ def test_save_predictions_rejects_object_with_non_callable_to_csv(tmp_path: Path
     class _FakePredictions:
         to_csv = "not-callable"
 
-    registry = LocalFileModelRegistry()
+    registry = LocalModelRegistry()
     run_dir = tmp_path / "run"
     run_dir.mkdir()
 
@@ -73,7 +73,7 @@ def test_save_predictions_rejects_object_with_non_callable_to_csv(tmp_path: Path
 
 
 def test_save_predictions_rejects_non_list_payload(tmp_path: Path) -> None:
-    registry = LocalFileModelRegistry()
+    registry = LocalModelRegistry()
     run_dir = tmp_path / "run"
     run_dir.mkdir()
 
@@ -82,7 +82,7 @@ def test_save_predictions_rejects_non_list_payload(tmp_path: Path) -> None:
 
 
 def test_save_predictions_rejects_non_mapping_rows(tmp_path: Path) -> None:
-    registry = LocalFileModelRegistry()
+    registry = LocalModelRegistry()
     run_dir = tmp_path / "run"
     run_dir.mkdir()
 
