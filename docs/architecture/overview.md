@@ -119,8 +119,8 @@ only place that imports both `infrastructure` and `application` simultaneously.
 ### `config/`
 
 `settings.py` defines typed dataclasses (`Settings`, `ModelDefaults`, `TickerCatalogSettings`,
-etc.) loaded from `config/config.yaml` via Pydantic. Always access settings through
-`get_settings()` or the container; never read the YAML directly.
+etc.) and loads them from `config/config.yaml` using PyYAML (`yaml`) plus manual parsing.
+Always access settings through `get_settings()` or the container; never read the YAML directly.
 
 ---
 
