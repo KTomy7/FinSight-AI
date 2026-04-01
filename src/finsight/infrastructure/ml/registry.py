@@ -83,8 +83,13 @@ class LocalModelRegistry(ModelRegistryPort):
     ) -> str:
         run_dir = self._resolve_run_dir(artifact_root=artifact_root, model_run_id=model_run_id)
         run_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Prevent silent overwrites: fail if artifacts already exist in this run
+        model_path = run_dir / MODEL_FILE_NAME
+        if model_path.exists():
+            raise FileExistsError(f"Run already exists for model_run_id='{model_run_id}' at {run_dir}. Use a unique model_run_id or delete the existing run.")
 
-        self._write_pickle(run_dir / MODEL_FILE_NAME, model_artifact)
+        self._write_pickle(model_path, model_artifact)
         self._write_json(run_dir / MANIFEST_FILE_NAME, manifest)
         self._write_json(run_dir / METRICS_FILE_NAME, metrics)
 
@@ -112,19 +117,35 @@ class LocalModelRegistry(ModelRegistryPort):
         payload: dict[str, Any] = {
             "model_run_id": model_run_id,
             "run_dir": str(run_dir),
-            "model_artifact": self._read_pickle(model_path),
+            "model_artifact": self._read_pickle(model_path, artifact_root=artifact_root),
             "manifest": self._read_json(manifest_path),
             "metrics": self._read_json(metrics_path),
         }
 
-        if predictions_path.exists():
-            payload["predictions"] = pd.read_csv(predictions_path)
+        if predictions_path.exists() and predictions_path.stat().st_size > 0:
+            try:
+                payload["predictions"] = pd.read_csv(predictions_path)
+            except pd.errors.EmptyDataError:
+                payload["predictions"] = pd.DataFrame()
 
         return payload
 
     @staticmethod
     def _resolve_run_dir(*, artifact_root: str, model_run_id: str) -> Path:
-        return Path(artifact_root) / model_run_id
+        # Validate run_id to prevent path traversal attacks (e.g., "../../../etc/passwd")
+        if ".." in model_run_id or "/" in model_run_id or "\\" in model_run_id:
+            raise ValueError(f"Invalid model_run_id: contains path separators or traversal sequences: {model_run_id}")
+        
+        resolved = (Path(artifact_root) / model_run_id).resolve()
+        artifact_root_resolved = Path(artifact_root).resolve()
+        
+        # Ensure resolved path stays under artifact_root
+        try:
+            resolved.relative_to(artifact_root_resolved)
+        except ValueError:
+            raise ValueError(f"Resolved run_dir escapes artifact_root: {resolved} not under {artifact_root_resolved}")
+        
+        return resolved
 
     @staticmethod
     def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
@@ -143,11 +164,22 @@ class LocalModelRegistry(ModelRegistryPort):
 
     @staticmethod
     def _write_pickle(path: Path, payload: object) -> None:
+        # Note: Pickles are not safe from untrusted sources; only load from known, trusted storage.
         with path.open("wb") as file_obj:
             pickle.dump(payload, file_obj)
 
     @staticmethod
-    def _read_pickle(path: Path) -> object:
+    def _read_pickle(path: Path, artifact_root: str = "") -> object:
+        # Security: Only load pickles from paths under artifact_root (trusted storage).
+        # Pickle can execute arbitrary code; ensure this is only called with trusted artifacts.
+        if artifact_root:
+            resolved = path.resolve()
+            artifact_root_resolved = Path(artifact_root).resolve()
+            try:
+                resolved.relative_to(artifact_root_resolved)
+            except ValueError:
+                raise ValueError(f"Refusing to load pickle outside artifact_root: {resolved}")
+        
         with path.open("rb") as file_obj:
             return pickle.load(file_obj)
 
