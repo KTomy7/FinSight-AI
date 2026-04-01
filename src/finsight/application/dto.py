@@ -66,10 +66,29 @@ class FetchMarketDataRequest:
         else:
             ticker = ""
 
-        start_date = _optional_str(payload.get("start_date"))
-        end_date = _optional_str(payload.get("end_date"))
-        interval = _optional_str(payload.get("interval"))
+        raw_start = payload.get("start_date")
+        if raw_start is None:
+            start_date = None
+        elif isinstance(raw_start, str) and raw_start.strip() == "":
+            start_date = None
+        else:
+            start_date = str(raw_start)
 
+        raw_end = payload.get("end_date")
+        if raw_end is None:
+            end_date = None
+        elif isinstance(raw_end, str) and raw_end.strip() == "":
+            end_date = None
+        else:
+            end_date = str(raw_end)
+
+        raw_interval = payload.get("interval")
+        if raw_interval is None:
+            interval = None
+        elif isinstance(raw_interval, str) and raw_interval.strip() == "":
+            interval = None
+        else:
+            interval = str(raw_interval)
         # Interpret include_summary more safely than bool(payload.get(...)):
         raw_include = payload.get("include_summary", True)
         if isinstance(raw_include, bool):
