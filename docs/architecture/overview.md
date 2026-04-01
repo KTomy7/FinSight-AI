@@ -134,7 +134,7 @@ CLI / Streamlit view
        ├─ FetchMarketData → MarketDataPort.fetch_ohlcv  (yfinance)
        ├─ FeatureStorePort.build_feature_dataset        (pandas)
        ├─ FeatureStorePort.split_train_test
-       ├─ ModelPort.evaluate                            (scikit-learn)
+       ├─ ModelPort.evaluate                            (NumPy/pandas baseline; scikit-learn optional)
        ├─ build_run_manifest + validate_run_manifest
        ├─ ModelRegistryPort.save_manifest               (local filesystem)
        └─ returns TrainModelResult
