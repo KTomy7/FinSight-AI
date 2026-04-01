@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import argparse
 
-from finsight.application.use_cases.train_model import TrainModelRequest
+from finsight.application.dto import TrainModelRequest
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="finsight")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    tickers = ", ".join(get_settings().training.training_tickers)
+    settings = get_settings()
+    tickers = ", ".join(settings.ticker_catalog.symbols())
+    training_model_ids = list(settings.model_defaults.training_model_ids())
     train_parser = subparsers.add_parser(
         "train",
         help=f"Train/evaluate baseline models on fixed tickers: {tickers}",
@@ -22,8 +25,8 @@ def _build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument(
         "--model-types",
         nargs="+",
-        default=["naive_zero", "naive_mean"],
-        help="Model types to evaluate",
+        default=training_model_ids,
+        help=f"Model IDs to evaluate (defaults: {', '.join(training_model_ids)})",
     )
     train_parser.add_argument(
         "--artifacts-dir",
@@ -51,9 +54,9 @@ def _run_train(args: argparse.Namespace) -> int:
         print(f"[{model_type}] run_dir={run_dir}")
         print(
             "  "
-            f"MAE={float(model_metrics['mae']):.6f} "
-            f"RMSE={float(model_metrics['rmse']):.6f} "
-            f"DirectionAcc={float(model_metrics['direction_accuracy']):.4f}"
+            f"MAE={float(model_metrics[METRIC_MAE]):.6f} "
+            f"RMSE={float(model_metrics[METRIC_RMSE]):.6f} "
+            f"DirectionAcc={float(model_metrics[METRIC_DIRECTION_ACCURACY]):.4f}"
         )
 
     return 0

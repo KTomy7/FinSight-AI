@@ -25,25 +25,38 @@ cache:
 # Model Defaults (UI + app defaults)
 # ====================================
 model_defaults:
-  options:
-    - "x model"
-    - "y model"
-    - "z model"
-  default_model: "x model"
+  catalog:
+    - id: "naive_zero"
+      label: "Naive (Zero)"
+      supports_training: true
+      supports_prediction: true
+    - id: "naive_mean"
+      label: "Naive (Mean)"
+      supports_training: true
+      supports_prediction: true
+    - id: "ridge"
+      label: "Ridge Regression"
+      supports_training: false
+      supports_prediction: false
+  default_model_id: "naive_zero"
   horizon_min: 7
   horizon_max: 90
   default_horizon: 30
 
 # ====================================
-# Model Training
+# Ticker Catalog (shared by train + predict)
 # ====================================
-training:
-  training_tickers:
-    - "AAPL"  # Tech
-    - "JPM"   # Finance
-    - "XOM"   # Energy
-    - "KO"    # Consumer
-    - "TSLA"  # Growth
+ticker_catalog:
+  - symbol: "AAPL" # Technology
+    company_name: "Apple Inc."
+  - symbol: "JPM" # Financials
+    company_name: "JPMorgan Chase & Co."
+  - symbol: "XOM" # Energy
+    company_name: "Exxon Mobil Corporation"
+  - symbol: "KO" # Consumer
+    company_name: "The Coca-Cola Company"
+  - symbol: "TSLA" # Growth
+    company_name: "Tesla, Inc."
 
 # ====================================
 # Paths

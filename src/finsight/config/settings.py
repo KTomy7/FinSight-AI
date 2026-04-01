@@ -29,21 +29,68 @@ class CacheSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelCatalogEntry:
+    id: str
+    label: str
+    supports_training: bool = True
+    supports_prediction: bool = True
+
+
+DEFAULT_MODEL_CATALOG: tuple[ModelCatalogEntry, ...] = (
+    ModelCatalogEntry(id="naive_zero", label="Naive (Zero)", supports_training=True, supports_prediction=True),
+    ModelCatalogEntry(id="naive_mean", label="Naive (Mean)", supports_training=True, supports_prediction=True),
+    ModelCatalogEntry(id="ridge", label="Ridge Regression", supports_training=False, supports_prediction=False),
+)
+
+
+@dataclass(frozen=True, slots=True)
 class ModelDefaults:
-    options: tuple[str, ...] = (
-        "Linear Regression",
-        "Random Forest",
-        "LSTM (Neural Network)",
-    )
-    default_model: str = "Linear Regression"
+    catalog: tuple[ModelCatalogEntry, ...] = DEFAULT_MODEL_CATALOG
+    default_model_id: str = "naive_zero"
     horizon_min: int = 7
     horizon_max: int = 90
     default_horizon: int = 30
 
+    def model_ids(self) -> tuple[str, ...]:
+        return tuple(entry.id for entry in self.catalog)
+
+    def labels(self) -> tuple[str, ...]:
+        return tuple(entry.label for entry in self.catalog)
+
+    def id_to_label(self) -> dict[str, str]:
+        return {entry.id: entry.label for entry in self.catalog}
+
+    def label_to_id(self) -> dict[str, str]:
+        return {entry.label: entry.id for entry in self.catalog}
+
+    def training_model_ids(self) -> tuple[str, ...]:
+        return tuple(entry.id for entry in self.catalog if entry.supports_training)
+
+    def prediction_model_ids(self) -> tuple[str, ...]:
+        return tuple(entry.id for entry in self.catalog if entry.supports_prediction)
+
 
 @dataclass(frozen=True, slots=True)
-class TrainingSettings:
-    training_tickers: tuple[str, ...] = ("AAPL", "JPM", "XOM", "KO", "TSLA")
+class TickerCatalogEntry:
+    symbol: str
+    company_name: str
+
+
+DEFAULT_TICKER_CATALOG: tuple[TickerCatalogEntry, ...] = (
+    TickerCatalogEntry(symbol="AAPL", company_name="Apple Inc."),
+    TickerCatalogEntry(symbol="JPM", company_name="JPMorgan Chase & Co."),
+    TickerCatalogEntry(symbol="XOM", company_name="Exxon Mobil Corporation"),
+    TickerCatalogEntry(symbol="KO", company_name="The Coca-Cola Company"),
+    TickerCatalogEntry(symbol="TSLA", company_name="Tesla, Inc."),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class TickerCatalogSettings:
+    entries: tuple[TickerCatalogEntry, ...] = DEFAULT_TICKER_CATALOG
+
+    def symbols(self) -> tuple[str, ...]:
+        return tuple(entry.symbol for entry in self.entries)
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +99,7 @@ class Settings:
     preprocessing: PreprocessingSettings = PreprocessingSettings()
     cache: CacheSettings = CacheSettings()
     model_defaults: ModelDefaults = ModelDefaults()
-    training: TrainingSettings = TrainingSettings()
+    ticker_catalog: TickerCatalogSettings = TickerCatalogSettings()
 
 
 def _default_config_path() -> Path:
@@ -107,13 +154,51 @@ def _as_bool(value: Any, default: bool) -> bool:
     return default
 
 
-def _as_tuple_of_str(value: Any, default: tuple[str, ...]) -> tuple[str, ...]:
-    if isinstance(value, (list, tuple)):
-        normalized = tuple(_as_str(item, "") for item in value)
-        filtered = tuple(item for item in normalized if item)
-        if filtered:
-            return filtered
-    return default
+def _normalize_symbol(value: Any) -> str:
+    return _as_str(value, "").upper()
+
+
+def _parse_model_catalog(value: Any, default: tuple[ModelCatalogEntry, ...]) -> tuple[ModelCatalogEntry, ...]:
+    if not isinstance(value, (list, tuple)):
+        return default
+
+    parsed_entries: list[ModelCatalogEntry] = []
+    for raw_entry in value:
+        entry_raw = _as_mapping(raw_entry)
+        model_id = _as_str(entry_raw.get("id"), "")
+        label = _as_str(entry_raw.get("label"), "")
+        if not model_id:
+            continue
+        parsed_entries.append(
+            ModelCatalogEntry(
+                id=model_id,
+                label=label or model_id,
+                supports_training=_as_bool(entry_raw.get("supports_training"), True),
+                supports_prediction=_as_bool(entry_raw.get("supports_prediction"), True),
+            )
+        )
+
+    return tuple(parsed_entries)
+
+
+def _parse_ticker_catalog(value: Any, default: tuple[TickerCatalogEntry, ...]) -> tuple[TickerCatalogEntry, ...]:
+    if value is None:
+        return default
+    if not isinstance(value, (list, tuple)):
+        raise ValueError("ticker_catalog must be a list or tuple of {symbol, company_name} objects.")
+
+    parsed_entries: list[TickerCatalogEntry] = []
+    for index, raw_entry in enumerate(value):
+        entry_raw = _as_mapping(raw_entry)
+        symbol = _normalize_symbol(entry_raw.get("symbol"))
+        company_name = _as_str(entry_raw.get("company_name"), "")
+        if not symbol:
+            raise ValueError(f"ticker_catalog[{index}].symbol must be a non-empty string.")
+        if not company_name:
+            raise ValueError(f"ticker_catalog[{index}].company_name must be a non-empty string.")
+        parsed_entries.append(TickerCatalogEntry(symbol=symbol, company_name=company_name))
+
+    return tuple(parsed_entries)
 
 
 @lru_cache(maxsize=1)
@@ -132,7 +217,7 @@ def get_settings(config_path: Path | None = None) -> Settings:
     preprocess_raw = _as_mapping(raw.get("preprocessing"))
     cache_raw = _as_mapping(raw.get("cache"))
     model_raw = _as_mapping(raw.get("model_defaults"))
-    training_raw = _as_mapping(raw.get("training"))
+    ticker_catalog_raw = raw.get("ticker_catalog")
 
     stock_settings = StockDataSettings(
         default_symbol=_as_str(stock_raw.get("default_symbol"), "AAPL"),
@@ -151,43 +236,69 @@ def get_settings(config_path: Path | None = None) -> Settings:
         data_ttl_seconds=_as_int(cache_raw.get("data_ttl_seconds"), 900, minimum=1),
     )
 
-    options = _as_tuple_of_str(
-        model_raw.get("options"),
-        (
-            "Linear Regression",
-            "Random Forest",
-            "LSTM (Neural Network)",
-        ),
-    )
-    default_model = _as_str(model_raw.get("default_model"), options[0])
-    if default_model not in options:
-        default_model = options[0]
+    if "catalog" in model_raw:
+        # When a catalog is explicitly provided (even if empty/invalid), do not
+        # fall back to DEFAULT_MODEL_CATALOG so that validation can detect it.
+        catalog = _parse_model_catalog(model_raw.get("catalog"), ())
+    else:
+        catalog = DEFAULT_MODEL_CATALOG
+    if not catalog:
+        raise ValueError("model_defaults.catalog must contain at least one model entry.")
+
+    model_ids = tuple(entry.id for entry in catalog)
+    if len(set(model_ids)) != len(model_ids):
+        raise ValueError("model_defaults.catalog contains duplicate model ids.")
+
+    labels = tuple(entry.label for entry in catalog)
+    if len(set(labels)) != len(labels):
+        raise ValueError("model_defaults.catalog contains duplicate model labels.")
+
+    default_model_id = _as_str(model_raw.get("default_model_id"), model_ids[0])
+    if default_model_id not in model_ids:
+        raise ValueError(
+            f"Unknown model_defaults.default_model_id '{default_model_id}'. Supported model ids: {model_ids}."
+        )
+
+    training_model_ids = tuple(entry.id for entry in catalog if entry.supports_training)
+    if not training_model_ids:
+        raise ValueError(
+            "model_defaults.catalog must enable training for at least one model "
+            "(set supports_training=true)."
+        )
 
     horizon_min = _as_int(model_raw.get("horizon_min"), 7, minimum=1)
     horizon_max = _as_int(model_raw.get("horizon_max"), 90, minimum=horizon_min)
     default_horizon = _as_int(model_raw.get("default_horizon"), 30, minimum=horizon_min, maximum=horizon_max)
 
     model_settings = ModelDefaults(
-        options=options,
-        default_model=default_model,
+        catalog=catalog,
+        default_model_id=default_model_id,
         horizon_min=horizon_min,
         horizon_max=horizon_max,
         default_horizon=default_horizon,
     )
 
-    training_settings = TrainingSettings(
-        training_tickers=_as_tuple_of_str(
-            training_raw.get("training_tickers"),
-            ("AAPL", "JPM", "XOM", "KO", "TSLA"),
-        ),
-    )
+    if "ticker_catalog" in raw:
+        # Reject invalid explicit catalogs instead of silently defaulting.
+        ticker_catalog_entries = _parse_ticker_catalog(ticker_catalog_raw, ())
+    else:
+        ticker_catalog_entries = DEFAULT_TICKER_CATALOG
+
+    if not ticker_catalog_entries:
+        raise ValueError("ticker_catalog must contain at least one ticker entry.")
+
+    ticker_symbols = tuple(entry.symbol for entry in ticker_catalog_entries)
+    if len(set(ticker_symbols)) != len(ticker_symbols):
+        raise ValueError("ticker_catalog contains duplicate symbols.")
+
+    ticker_catalog_settings = TickerCatalogSettings(entries=ticker_catalog_entries)
 
     return Settings(
         stock_data=stock_settings,
         preprocessing=preprocessing_settings,
         cache=cache_settings,
         model_defaults=model_settings,
-        training=training_settings,
+        ticker_catalog=ticker_catalog_settings,
     )
 
 

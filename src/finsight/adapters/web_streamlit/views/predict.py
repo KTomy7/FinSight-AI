@@ -2,12 +2,11 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from typing import TYPE_CHECKING
 
-from finsight.application.use_cases.fetch_market_data import (
-    FetchMarketData,
-    FetchMarketDataRequest,
-)
-from finsight.config.settings import get_settings
+from finsight.application.dto import FetchMarketDataRequest
+from finsight.application.use_cases.fetch_market_data import FetchMarketData
+from finsight.adapters.web_streamlit.ticker_options import build_ticker_select_items
 from finsight.bootstrap.container import build_container
+from finsight.config.settings import get_settings
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
@@ -60,16 +59,51 @@ def render():
     col1, col2 = st.columns(2)
 
     with col1:
-        ticker = st.selectbox("Choose a stock ticker", ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "NFLX"])
+        ticker_items = build_ticker_select_items(_SETTINGS.ticker_catalog.entries)
+        ticker_symbols = [symbol for symbol, _label in ticker_items]
+        ticker_label_lookup = {symbol: label for symbol, label in ticker_items}
+        ticker = st.selectbox(
+            "Choose a stock ticker",
+            ticker_symbols,
+            format_func=lambda symbol: ticker_label_lookup.get(symbol, symbol),
+        )
 
     model_defaults = _SETTINGS.model_defaults
+    id_to_label = model_defaults.id_to_label()
+    prediction_model_ids = list(model_defaults.prediction_model_ids())
+    prediction_model_labels = [id_to_label[model_id] for model_id in prediction_model_ids]
+    has_prediction_models = bool(prediction_model_ids)
 
-    # TODO: model_choice will be used by the forecast use case.
+    if model_defaults.default_model_id in prediction_model_ids:
+        default_model_id = model_defaults.default_model_id
+    elif prediction_model_ids:
+        default_model_id = prediction_model_ids[0]
+    else:
+        default_model_id = None
+
+    selected_model_id: str | None = None
+
+    # TODO: selected_model_id will be passed to the forecast use case.
     with col2:
-        model_choice = st.selectbox(
-            "Choose a prediction model",
-            list(model_defaults.options),
-            index=list(model_defaults.options).index(model_defaults.default_model),
+        if has_prediction_models:
+            selected_index = prediction_model_ids.index(default_model_id)
+            selected_label = st.selectbox(
+                "Choose a prediction model",
+                prediction_model_labels,
+                index=selected_index,
+            )
+            selected_model_id = prediction_model_ids[prediction_model_labels.index(selected_label)]
+        else:
+            st.selectbox(
+                "Choose a prediction model",
+                ["No prediction-enabled models configured"],
+                index=0,
+                disabled=True,
+            )
+
+    if not has_prediction_models:
+        st.warning(
+            "No prediction-enabled models are configured."
         )
 
     # TODO: horizon will be used by the forecast use case.
@@ -83,7 +117,11 @@ def render():
 
     fetch_col, predict_col = st.columns(2)
     fetch_data_button = fetch_col.button("Fetch Historical Data", use_container_width=True)
-    predict_button = predict_col.button("Run Prediction", use_container_width=True)
+    predict_button = predict_col.button(
+        "Run Prediction",
+        use_container_width=True,
+        disabled=not has_prediction_models,
+    )
 
     if fetch_data_button:
         try:
@@ -91,7 +129,7 @@ def render():
         except Exception as e:
             st.error(f"Failed to fetch data: {e}")
 
-    if predict_button:
+    if predict_button and selected_model_id is not None:
         st.info(
-            "Prediction flow is not implemented yet."
+            f"Prediction flow is not implemented yet (selected model_id='{selected_model_id}')."
         )

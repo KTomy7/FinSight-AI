@@ -14,7 +14,8 @@ dependencies = [
   "pandas",
   "matplotlib",
   "yfinance",
-  "PyYAML"
+  "PyYAML",
+  "numpy"
 ]
 
 [project.optional-dependencies]
@@ -22,6 +23,9 @@ dev = [
   "pytest",
   "pytest-cov",
   "diff-cover",
+]
+ml = [
+  "scikit-learn"
 ]
 
 [project.scripts]
