@@ -75,4 +75,19 @@ class ModelRegistryPort(Protocol):
     def save_predictions(self, *, run_dir: str, predictions: object) -> None:
         raise NotImplementedError
 
+    def save_run(
+        self,
+        *,
+        artifact_root: str,
+        model_run_id: str,
+        model_artifact: object,
+        manifest: Mapping[str, Any],
+        metrics: Mapping[str, float | int | str],
+        predictions: object | None = None,
+    ) -> str:
+        raise NotImplementedError
+
+    def load_run(self, *, artifact_root: str, model_run_id: str) -> Mapping[str, Any]:
+        raise NotImplementedError
+
 

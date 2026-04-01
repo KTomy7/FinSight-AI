@@ -307,6 +307,30 @@ class TrainModelResult:
 
 
 @dataclass(frozen=True, slots=True)
+class LoadModelRunRequest:
+    model_run_id: str
+    artifacts_dir: str = "artifacts/runs"
+
+
+@dataclass(frozen=True, slots=True)
+class LoadModelRunResult:
+    model_run_id: str
+    run_dir: str
+    model_artifact: object
+    manifest: dict[str, Any]
+    metrics: dict[str, MetricValue]
+    predictions: object | None = None
+
+    @property
+    def predict_metadata(self) -> Mapping[str, Any] | None:
+        if isinstance(self.model_artifact, Mapping):
+            raw = self.model_artifact.get("predict_metadata")
+            if isinstance(raw, Mapping):
+                return raw
+        return None
+
+
+@dataclass(frozen=True, slots=True)
 class ForecastResult:
     model_id: str
     ticker: str
@@ -389,6 +413,8 @@ __all__ = [
     "FetchMarketDataRequest",
     "FetchMarketDataResult",
     "ForecastResult",
+    "LoadModelRunRequest",
+    "LoadModelRunResult",
     "MetricValue",
     "TrainModelRequest",
     "TrainModelResult",

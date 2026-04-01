@@ -186,6 +186,7 @@ class TrainModel:
                 },
                 artifact_paths={
                     "run_dir": run_dir,
+                    "model": str(Path(run_dir) / "model.pkl"),
                     "metrics": str(Path(run_dir) / "metrics.json"),
                     "manifest": str(Path(run_dir) / "manifest.json"),
                     "predictions": str(Path(run_dir) / "predictions.csv"),
@@ -193,16 +194,18 @@ class TrainModel:
                 created_at=created_at_utc,
             )
 
-            self._model_registry.save_metrics(
-                run_dir=run_dir,
+            model_artifact = self._build_model_artifact(
+                model_type=model_type,
+                feature_columns=feature_columns,
                 metrics=enriched_metrics,
             )
-            self._model_registry.save_manifest(
-                run_dir=run_dir,
+
+            self._model_registry.save_run(
+                artifact_root=request.artifacts_dir,
+                model_run_id=run_dir_name,
+                model_artifact=model_artifact,
                 manifest=manifest,
-            )
-            self._model_registry.save_predictions(
-                run_dir=run_dir,
+                metrics=enriched_metrics,
                 predictions=predictions_by_model[model_type],
             )
 
@@ -210,6 +213,26 @@ class TrainModel:
             metrics[model_type] = enriched_metrics
 
         return application_dto.TrainModelResult(run_dirs=run_dirs, metrics=metrics)
+
+    def _build_model_artifact(
+        self,
+        *,
+        model_type: str,
+        feature_columns: list[str],
+        metrics: dict[str, float | int | str],
+    ) -> object:
+        # Fallback artifact keeps run metadata loadable until model ports expose a train artifact.
+        return {
+            "model_type": model_type,
+            "target_column": TARGET_COLUMN,
+            "feature_columns": list(feature_columns),
+            "predict_metadata": {
+                "model_type": model_type,
+                "target_column": TARGET_COLUMN,
+                "feature_columns": list(feature_columns),
+            },
+            "metrics_snapshot": dict(metrics),
+        }
 
     @staticmethod
     def _as_tuple(values: tuple[str, ...] | list[str]) -> tuple[str, ...]:
