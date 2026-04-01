@@ -57,7 +57,7 @@ Orchestrates domain objects and ports to fulfil business use cases.
 
 **Rules:**
 - Use cases depend only on domain ports (injected via constructor).
-- DTOs are frozen dataclasses with `to_dict` / `from_dict` for serialisation.
+- DTOs are frozen dataclasses. DTOs used for adapter/persistence serialization provide `to_dict` / `from_dict` helpers; others may expose domain entities directly.
 - No Streamlit, no yfinance, no sklearn imports.
 
 ---
