@@ -327,8 +327,11 @@ class BacktestResult:
                 if isinstance(row, Mapping):
                     folds.append({str(key): row[key] for key in row})
 
+        model_id_raw = payload.get("model_id", "")
+        model_id = "" if model_id_raw in (None, "") else str(model_id_raw)
+
         return cls(
-            model_id=str(payload.get("model_id", "")),
+            model_id=model_id,
             metrics=metrics,
             folds=folds,
         )
