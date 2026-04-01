@@ -27,23 +27,21 @@ All DTOs provide `to_dict()` and `from_dict()` methods for adapter/persistence s
 
 ## Migration path for existing TrainModelRequest/Response imports
 
-### Preferred imports (new)
+### Preferred imports (canonical)
 
 ```python
 from finsight.application.dto import TrainModelRequest, TrainModelResult
 ```
 
-### Legacy imports (removed)
+### Legacy imports (removed — migration complete)
 
+The temporary re-export from `finsight.application.use_cases.train_model` has been
+removed. Any code that previously imported DTOs from the use-case module must now
+import from `finsight.application.dto`.
 
-This path was temporary during migration and is no longer exported by
-`finsight.application.use_cases.train_model`.
+## Rollout status
 
-Use `finsight.application.dto` for all request/response DTO imports.
-
-## Suggested rollout
-
-1. Update adapters/tests to import DTOs from `finsight.application.dto`.
-2. Keep legacy import compatibility for one release cycle.
-3. Remove legacy import usage once the codebase no longer depends on it. (completed)
+1. ✅ DTOs centralised in `finsight.application.dto`.
+2. ✅ All adapters and tests updated to import from `finsight.application.dto`.
+3. ✅ Legacy re-export removed from `finsight.application.use_cases.train_model`.
 
