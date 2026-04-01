@@ -232,11 +232,30 @@ class TrainModelRequest:
         else:
             artifacts_dir = str(raw_artifacts_dir)
 
+        # Normalise optional date/interval fields: treat whitespace-only as missing.
+        raw_end = payload.get("end")
+        if raw_end is None:
+            end = None
+        elif isinstance(raw_end, str):
+            end_candidate = raw_end.strip()
+            end = end_candidate or None
+        else:
+            end = str(raw_end)
+
+        raw_interval = payload.get("interval")
+        if raw_interval is None:
+            interval = None
+        elif isinstance(raw_interval, str):
+            interval_candidate = raw_interval.strip()
+            interval = interval_candidate or None
+        else:
+            interval = str(raw_interval)
+
         return cls(
             cutoff_date=cutoff_date,
             years=_safe_int(payload.get("years", 2), default=2),
-            end=_optional_str(payload.get("end")),
-            interval=_optional_str(payload.get("interval")),
+            end=end,
+            interval=interval,
             model_types=_string_list(payload.get("model_types"), default=["naive_zero", "naive_mean"]),
             artifacts_dir=artifacts_dir,
         )
