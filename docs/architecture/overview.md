@@ -71,7 +71,7 @@ Provides concrete implementations of the domain ports.
 | `market_data/yfinance_provider.py` | `MarketDataPort` |
 | `features/feature_store.py` | `FeatureStorePort` |
 | `ml/sklearn/baseline.py` | `ModelPort` |
-| `persistence/file_model_registry.py` | `ModelRegistryPort` |
+| `ml/registry.py` | `ModelRegistryPort` |
 
 **Rules:**
 - Each implementation satisfies exactly one port protocol.

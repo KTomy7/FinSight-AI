@@ -9,7 +9,7 @@ from finsight.config.settings import get_settings
 from finsight.infrastructure.features.feature_store import PandasFeatureStore
 from finsight.infrastructure.market_data.yfinance_provider import YFinanceMarketDataProvider
 from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineModel
-from finsight.infrastructure.persistence.file_model_registry import LocalFileModelRegistry
+from finsight.infrastructure.ml.registry import LocalFileModelRegistry
 
 
 @dataclass(frozen=True, slots=True)

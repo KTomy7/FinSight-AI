@@ -15,7 +15,8 @@ dependencies = [
   "matplotlib",
   "yfinance",
   "PyYAML",
-  "numpy"
+  "numpy",
+  "joblib"
 ]
 
 [project.optional-dependencies]

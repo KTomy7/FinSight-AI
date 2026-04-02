@@ -307,6 +307,19 @@ class TrainModelResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelRunArtifacts:
+    run_id: str
+    run_dir: str
+    model_path: str
+    metrics_path: str
+    manifest_path: str
+    predictions_path: str
+    model: object
+    metrics: Mapping[str, MetricValue]
+    manifest: Mapping[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
 class ForecastResult:
     model_id: str
     ticker: str
@@ -390,6 +403,7 @@ __all__ = [
     "FetchMarketDataResult",
     "ForecastResult",
     "MetricValue",
+    "ModelRunArtifacts",
     "TrainModelRequest",
     "TrainModelResult",
 ]
