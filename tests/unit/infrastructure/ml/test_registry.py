@@ -352,3 +352,98 @@ def test_save_metrics_and_manifest_write_json_files(tmp_path: Path) -> None:
     assert json.loads((run_dir / "manifest.json").read_text(encoding="utf-8")) == {"run_id": "abc"}
 
 
+def test_save_run_cleans_up_artifacts_and_run_dir_when_metrics_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = LocalModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-04-02T101000Z__naive"
+    run_dir = artifact_root / model_run_id
+
+    original_write_json = LocalModelRegistry._write_json
+
+    def fail_on_metrics(path: Path, payload: dict[str, object]) -> None:
+        if path.name == "metrics.json":
+            raise RuntimeError("metrics write failed")
+        original_write_json(path, payload)
+
+    monkeypatch.setattr(LocalModelRegistry, "_write_json", staticmethod(fail_on_metrics))
+
+    with pytest.raises(RuntimeError, match="metrics write failed"):
+        registry.save_run(
+            artifact_root=str(artifact_root),
+            model_run_id=model_run_id,
+            model_artifact={"weights": [0.1]},
+            manifest={"run_id": model_run_id},
+            metrics={"mae": 0.01},
+        )
+
+    assert not run_dir.exists()
+
+
+def test_save_run_cleans_up_artifacts_and_run_dir_when_save_predictions_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = LocalModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-04-02T101500Z__naive"
+    run_dir = artifact_root / model_run_id
+
+    def fail_save_predictions(*, run_dir: str, predictions: object) -> None:
+        raise RuntimeError("predictions write failed")
+
+    monkeypatch.setattr(registry, "save_predictions", fail_save_predictions)
+
+    with pytest.raises(RuntimeError, match="predictions write failed"):
+        registry.save_run(
+            artifact_root=str(artifact_root),
+            model_run_id=model_run_id,
+            model_artifact={"weights": [0.1]},
+            manifest={"run_id": model_run_id},
+            metrics={"mae": 0.01},
+            predictions=[{"date": "2026-04-01", "ticker": "AAPL", "y_pred": 0.0}],
+        )
+
+    assert not run_dir.exists()
+
+
+def test_save_run_failure_on_preexisting_run_dir_keeps_sentinel_and_removes_new_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = LocalModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-04-02T102000Z__naive"
+    run_dir = artifact_root / model_run_id
+    run_dir.mkdir(parents=True)
+    sentinel = run_dir / "keep.txt"
+    sentinel.write_text("keep", encoding="utf-8")
+
+    original_write_json = LocalModelRegistry._write_json
+
+    def fail_on_metrics(path: Path, payload: dict[str, object]) -> None:
+        if path.name == "metrics.json":
+            raise RuntimeError("metrics write failed")
+        original_write_json(path, payload)
+
+    monkeypatch.setattr(LocalModelRegistry, "_write_json", staticmethod(fail_on_metrics))
+
+    with pytest.raises(RuntimeError, match="metrics write failed"):
+        registry.save_run(
+            artifact_root=str(artifact_root),
+            model_run_id=model_run_id,
+            model_artifact={"weights": [0.1]},
+            manifest={"run_id": model_run_id},
+            metrics={"mae": 0.01},
+        )
+
+    assert run_dir.exists()
+    assert sentinel.exists()
+    assert not (run_dir / "model.pkl").exists()
+    assert not (run_dir / "manifest.json").exists()
+    assert not (run_dir / "metrics.json").exists()
+    assert not (run_dir / "predictions.csv").exists()
+
+

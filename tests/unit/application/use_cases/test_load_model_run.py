@@ -56,8 +56,8 @@ def test_load_model_run_returns_artifact_manifest_metrics_and_predict_metadata(t
         ),
     )
 
-    use_case = LoadModelRun(model_registry=registry)
-    result = use_case.execute(LoadModelRunRequest(model_run_id=model_run_id, artifacts_dir=str(artifacts_dir)))
+    use_case = LoadModelRun(model_registry=registry, artifact_root=str(artifacts_dir))
+    result = use_case.execute(LoadModelRunRequest(model_run_id=model_run_id))
 
     assert result.model_run_id == model_run_id
     assert result.manifest["model_id"] == "naive_zero"

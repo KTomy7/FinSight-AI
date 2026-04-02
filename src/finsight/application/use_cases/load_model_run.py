@@ -5,12 +5,13 @@ from finsight.domain.ports import ModelRegistryPort
 
 
 class LoadModelRun:
-    def __init__(self, model_registry: ModelRegistryPort) -> None:
+    def __init__(self, model_registry: ModelRegistryPort, artifact_root: str) -> None:
         self._model_registry = model_registry
+        self._artifact_root = artifact_root
 
     def execute(self, request: application_dto.LoadModelRunRequest) -> application_dto.LoadModelRunResult:
         loaded = self._model_registry.load_run(
-            artifact_root=request.artifacts_dir,
+            artifact_root=self._artifact_root,
             model_run_id=request.model_run_id,
         )
 

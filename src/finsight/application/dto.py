@@ -309,7 +309,6 @@ class TrainModelResult:
 @dataclass(frozen=True, slots=True)
 class LoadModelRunRequest:
     model_run_id: str
-    artifacts_dir: str = "artifacts/runs"
 
 
 @dataclass(frozen=True, slots=True)

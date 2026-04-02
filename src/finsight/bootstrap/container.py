@@ -46,7 +46,13 @@ def build_container() -> AppContainer:
         supported_model_types=settings.model_defaults.training_model_ids(),
         default_interval=settings.stock_data.default_interval,
     )
-    load_model_run = LoadModelRun(model_registry=model_registry)
+    configured_artifact_root = getattr(settings, "artifact_root", "artifacts/runs")
+    trusted_artifact_root = (
+        configured_artifact_root.strip()
+        if isinstance(configured_artifact_root, str) and configured_artifact_root.strip()
+        else "artifacts/runs"
+    )
+    load_model_run = LoadModelRun(model_registry=model_registry, artifact_root=trusted_artifact_root)
 
     return AppContainer(
         fetch_market_data=fetch_market_data,

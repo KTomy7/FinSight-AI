@@ -86,6 +86,8 @@ class LocalModelRegistry(ModelRegistryPort):
     ) -> str:
         run_dir = self._resolve_run_dir(artifact_root=artifact_root, model_run_id=model_run_id)
         self._validate_manifest_consistency(manifest=manifest, model_run_id=model_run_id, run_dir=run_dir)
+
+        run_dir_preexisteed = run_dir.exists()
         run_dir.mkdir(parents=True, exist_ok=True)
 
         # Prevent silent overwrites: fail if any expected artifacts already exist in this run.
@@ -93,20 +95,46 @@ class LocalModelRegistry(ModelRegistryPort):
         manifest_path = run_dir / MANIFEST_FILE_NAME
         metrics_path = run_dir / METRICS_FILE_NAME
         predictions_path = run_dir / PREDICTIONS_FILE_NAME
+
         if any(path.exists() for path in (model_path, manifest_path, metrics_path, predictions_path)):
             raise FileExistsError(
                 f"Run already exists for model_run_id='{model_run_id}' at {run_dir}. "
                 "Use a unique model_run_id or delete the existing run before saving."
             )
 
-        self._write_pickle(model_path, model_artifact)
-        self._write_json(manifest_path, manifest)
-        self._write_json(metrics_path, metrics)
+        created_paths: list[Path] = []
+        try:
+            self._write_pickle(model_path, model_artifact)
+            created_paths.append(model_path)
 
-        if predictions is not None:
-            self.save_predictions(run_dir=str(run_dir), predictions=predictions)
+            self._write_json(manifest_path, manifest)
+            created_paths.append(manifest_path)
 
-        return str(run_dir)
+            self._write_json(metrics_path, metrics)
+            created_paths.append(metrics_path)
+
+            if predictions is not None:
+                self.save_predictions(run_dir=str(run_dir), predictions=predictions)
+                created_paths.append(predictions_path)
+
+            return str(run_dir)
+
+        except Exception:
+            for path in reversed(created_paths):
+                try:
+                    if path.exists():
+                        path.unlink()
+                except OSError:
+                    pass
+
+            if not run_dir_preexisteed:
+                try:
+                    run_dir.rmdir()
+                except OSError:
+                    pass
+
+            raise
+
 
     def load_run(self, *, artifact_root: str, model_run_id: str) -> Mapping[str, Any]:
         run_dir = self._resolve_run_dir(artifact_root=artifact_root, model_run_id=model_run_id)
