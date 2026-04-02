@@ -154,6 +154,9 @@ class FileSystemModelRegistry(ModelRegistryPort):
         candidate = str(filename).strip()
         if not candidate:
             raise ValueError("filename must be a non-empty string.")
+        # Reject both separator styles regardless of host OS.
+        if "/" in candidate or "\\" in candidate:
+            raise ValueError("filename must not include directory separators.")
         path_candidate = Path(candidate)
         if path_candidate.name != candidate:
             raise ValueError("filename must not include directory separators.")
