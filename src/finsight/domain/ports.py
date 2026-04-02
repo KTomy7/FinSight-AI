@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
-from finsight.domain.entities import OHLCVSeries, StockSummary
+from finsight.domain.entities import ModelRunRecord, OHLCVSeries, StockSummary
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 
 @runtime_checkable
@@ -73,6 +73,18 @@ class ModelRegistryPort(Protocol):
         raise NotImplementedError
 
     def save_predictions(self, *, run_dir: str, predictions: object) -> None:
+        raise NotImplementedError
+
+    def save_model_artifact(
+        self,
+        *,
+        run_dir: str,
+        model_artifact: object,
+        filename: str = "model.artifact",
+    ) -> str:
+        raise NotImplementedError
+
+    def load_run(self, *, artifact_root: str, model_run_id: str) -> ModelRunRecord:
         raise NotImplementedError
 
 
