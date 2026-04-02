@@ -96,7 +96,12 @@ class LinearSklearnModel(ModelPort):
     ) -> list[str]:
         excluded = {target_column, *id_columns}
         common = [col for col in train_df.columns if col in test_df.columns and col not in excluded]
-        numeric = [col for col in common if pd.api.types.is_numeric_dtype(train_df[col])]
+        numeric = [
+            col
+            for col in common
+            if pd.api.types.is_numeric_dtype(train_df[col])
+            and pd.api.types.is_numeric_dtype(test_df[col])
+        ]
         return numeric
 
     @staticmethod
