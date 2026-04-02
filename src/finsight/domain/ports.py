@@ -5,6 +5,7 @@ from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 from finsight.domain.entities import OHLCVSeries, StockSummary
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 
+
 @runtime_checkable
 class MarketDataPort(Protocol):
     def fetch_ohlcv(
@@ -66,13 +67,28 @@ class ModelRegistryPort(Protocol):
     def create_run_dir(self, *, artifact_root: str, run_id: str) -> str:
         raise NotImplementedError
 
+    def save_model(self, *, run_dir: str, model: object) -> None:
+        raise NotImplementedError
+
+    def load_model(self, *, artifact_root: str, run_id: str) -> object:
+        raise NotImplementedError
+
     def save_metrics(self, *, run_dir: str, metrics: Mapping[str, float | int | str]) -> None:
+        raise NotImplementedError
+
+    def load_metrics(self, *, artifact_root: str, run_id: str) -> Mapping[str, float | int | str]:
         raise NotImplementedError
 
     def save_manifest(self, *, run_dir: str, manifest: Mapping[str, Any]) -> None:
         raise NotImplementedError
 
+    def load_manifest(self, *, artifact_root: str, run_id: str) -> Mapping[str, Any]:
+        raise NotImplementedError
+
     def save_predictions(self, *, run_dir: str, predictions: object) -> None:
+        raise NotImplementedError
+
+    def load_run_artifacts(self, *, artifact_root: str, run_id: str) -> object:
         raise NotImplementedError
 
 
