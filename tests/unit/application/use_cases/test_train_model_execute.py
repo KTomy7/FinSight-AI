@@ -16,8 +16,8 @@ from finsight.domain.entities import OHLCVSeries
 from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 from finsight.infrastructure.features import PandasFeatureStore
+from finsight.infrastructure.ml.registry import LocalFileModelRegistry
 from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
-from finsight.infrastructure.persistence import LocalFileModelRegistry
 
 
 class _StubFetchMarketData:

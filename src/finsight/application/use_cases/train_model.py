@@ -10,8 +10,6 @@ from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
 TARGET_COLUMN = "target_ret_1d"
 
-
-
 def _validate_model_types(model_types: list[str]) -> list[str]:
     if not model_types:
         raise ValueError("model_types must contain at least one model type.")
@@ -51,7 +49,6 @@ def _get_training_tickers(training_tickers: tuple[str, ...] | list[str]) -> list
     if len(set(tickers)) != len(tickers):
         raise ValueError("Configured training tickers must not contain duplicates.")
     return tickers
-
 
 
 class TrainModel:
@@ -148,6 +145,11 @@ class TrainModel:
                 run_id=run_id,
             )
             run_dir_name = Path(run_dir).name
+
+            self._model_registry.save_model(
+                run_dir=run_dir,
+                model=self._model,
+            )
 
             enriched_metrics: dict[str, float | int | str] = {
                 **model_metrics[model_type],
