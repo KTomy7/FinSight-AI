@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from finsight.application.contracts import build_run_manifest
 from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
@@ -84,4 +85,67 @@ def test_local_file_model_registry_round_trip_loads_model_and_metadata(tmp_path:
     assert Path(loaded_bundle.metrics_path).exists()
     assert Path(loaded_bundle.manifest_path).exists()
     assert Path(loaded_bundle.predictions_path).exists()
+
+
+def test_save_predictions_writes_empty_file_for_empty_rows(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    registry.save_predictions(run_dir=str(run_dir), predictions=[])
+
+    assert (run_dir / "predictions.csv").read_text(encoding="utf-8") == ""
+
+
+def test_save_predictions_merges_fieldnames_from_all_rows(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    registry.save_predictions(
+        run_dir=str(run_dir),
+        predictions=[
+            {"date": "2026-03-01", "ticker": "AAPL"},
+            {"date": "2026-03-02", "ticker": "AAPL", "y_pred": 0.1},
+        ],
+    )
+
+    loaded = pd.read_csv(run_dir / "predictions.csv")
+    assert {"date", "ticker", "y_pred"}.issubset(set(loaded.columns))
+
+
+def test_load_metrics_raises_when_metrics_json_is_missing(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+
+    with pytest.raises(FileNotFoundError, match="Missing model registry artifact"):
+        registry.load_metrics(artifact_root=str(tmp_path), run_id="missing-run")
+
+
+def test_load_metrics_rejects_non_object_json_payload(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+    run_dir = tmp_path / "runs" / "run-a"
+    run_dir.mkdir(parents=True)
+    (run_dir / "metrics.json").write_text("[]", encoding="utf-8")
+
+    with pytest.raises(TypeError, match="must contain a JSON object"):
+        registry.load_metrics(artifact_root=str(tmp_path / "runs"), run_id="run-a")
+
+
+def test_load_run_artifacts_raises_for_missing_directory(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+
+    with pytest.raises(FileNotFoundError, match="Model run directory does not exist"):
+        registry.load_run_artifacts(artifact_root=str(tmp_path), run_id="missing-run")
+
+
+def test_load_run_artifacts_raises_for_non_directory_path(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+    artifact_root = tmp_path / "runs"
+    artifact_root.mkdir()
+    non_directory = artifact_root / "run-a"
+    non_directory.write_text("not-a-directory", encoding="utf-8")
+
+    with pytest.raises(NotADirectoryError, match="Model run path is not a directory"):
+        registry.load_run_artifacts(artifact_root=str(artifact_root), run_id="run-a")
+
 
