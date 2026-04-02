@@ -16,7 +16,8 @@ dependencies = [
   "yfinance",
   "PyYAML",
   "numpy",
-  "joblib"
+  "joblib",
+  "scikit-learn"
 ]
 
 [project.optional-dependencies]
@@ -24,9 +25,6 @@ dev = [
   "pytest",
   "pytest-cov",
   "diff-cover",
-]
-ml = [
-  "scikit-learn"
 ]
 
 [project.scripts]

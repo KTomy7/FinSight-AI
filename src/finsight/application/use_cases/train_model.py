@@ -6,6 +6,7 @@ from pathlib import Path
 from finsight.application.contracts import build_run_manifest
 import finsight.application.dto as application_dto
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
+from finsight.domain.entities import ModelEvaluationResult
 from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
 
 TARGET_COLUMN = "target_ret_1d"
@@ -113,17 +114,15 @@ class TrainModel:
             inclusive_test=True,
         )
 
-        model_metrics: dict[str, dict[str, float]] = {}
-        predictions_by_model: dict[str, object] = {}
+        evaluation_by_model: dict[str, ModelEvaluationResult] = {}
         for model_type in model_types:
-            metric_values, predictions = self._model.evaluate(
+            evaluation_result = self._model.evaluate(
                 train_dataset=train_dataset,
                 test_dataset=test_dataset,
                 model_type=model_type,
                 target_column=TARGET_COLUMN,
             )
-            model_metrics[model_type] = dict(metric_values)
-            predictions_by_model[model_type] = predictions
+            evaluation_by_model[model_type] = evaluation_result
 
         train_min_date, train_max_date = self._feature_store.frame_date_range(train_dataset)
         test_min_date, test_max_date = self._feature_store.frame_date_range(test_dataset)
@@ -139,6 +138,7 @@ class TrainModel:
         metrics: dict[str, dict[str, float | int | str]] = {}
 
         for model_type in model_types:
+            evaluation_result = evaluation_by_model[model_type]
             run_id = f"{run_prefix}__{model_type}"
             run_dir = self._model_registry.create_run_dir(
                 artifact_root=request.artifacts_dir,
@@ -148,11 +148,11 @@ class TrainModel:
 
             self._model_registry.save_model(
                 run_dir=run_dir,
-                model=self._model,
+                model=evaluation_result.trained_artifact,
             )
 
             enriched_metrics: dict[str, float | int | str] = {
-                **model_metrics[model_type],
+                **dict(evaluation_result.metrics),
                 "n_train": n_train,
                 "n_test": n_test,
                 "train_min_date": train_min_date,
@@ -185,6 +185,7 @@ class TrainModel:
                     "interval": resolved_interval,
                     "years": int(request.years),
                     "horizon": "1d",
+                    "model_metadata": dict(evaluation_result.model_metadata),
                 },
                 artifact_paths={
                     "run_dir": run_dir,
@@ -205,7 +206,7 @@ class TrainModel:
             )
             self._model_registry.save_predictions(
                 run_dir=run_dir,
-                predictions=predictions_by_model[model_type],
+                predictions=evaluation_result.predictions,
             )
 
             run_dirs[model_type] = run_dir

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
-from finsight.domain.entities import OHLCVSeries, StockSummary
+from finsight.domain.entities import ModelEvaluationResult, OHLCVSeries, StockSummary
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 
 
@@ -55,7 +55,7 @@ class ModelPort(Protocol):
         model_type: str,
         target_column: str,
         id_columns: Sequence[str] = ("date", "ticker"),
-    ) -> tuple[Mapping[str, float], object]:
+    ) -> ModelEvaluationResult:
         raise NotImplementedError
 
     def supported_model_types(self) -> tuple[str, ...]:
