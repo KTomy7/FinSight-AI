@@ -38,13 +38,15 @@ def test_router_delegates_to_matching_adapter() -> None:
     router = SklearnModelRouter(adapters=[NaiveBaselineModel()])
     train_df, test_df = _synthetic_train_test()
 
-    metrics, predictions = router.evaluate(
+    result = router.evaluate(
         train_dataset=train_df,
         test_dataset=test_df,
         model_type="naive_zero",
         target_column="target_ret_1d",
     )
 
+    metrics = result.metrics
+    predictions = result.predictions
     assert "mae" in metrics
     assert list(predictions.columns) == ["date", "ticker", "y_true", "y_pred"]
     assert len(predictions) == len(test_df)

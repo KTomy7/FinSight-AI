@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
@@ -282,6 +283,26 @@ def test_execute_supports_ridge_via_router(tmp_path) -> None:
     assert "ridge" in response.run_dirs
     assert set(SUPPORTED_METRIC_NAMES).issubset(response.metrics["ridge"])
     assert stub.calls != []
+
+    loaded_model = LocalFileModelRegistry().load_model(
+        artifact_root=str(tmp_path / "runs"),
+        run_id=Path(response.run_dirs["ridge"]).name,
+    )
+    assert loaded_model.__class__.__name__ == "Pipeline"
+    assert "ridge" in loaded_model.named_steps
+    assert "scaler" in loaded_model.named_steps
+
+    manifest_path = Path(response.run_dirs["ridge"]) / "manifest.json"
+    manifest_json = json.loads(manifest_path.read_text(encoding="utf-8"))
+    model_metadata = manifest_json["params"]["model_metadata"]
+    assert model_metadata["model_id"] == "ridge"
+    assert model_metadata["estimator"] == "Pipeline"
+    assert model_metadata["base_estimator"] == "Ridge"
+    assert model_metadata["preprocessing"]["scaler"] == "StandardScaler"
+    assert model_metadata["coefficient_space"] == "standardized"
+    assert isinstance(model_metadata["coefficients"], dict)
+    assert isinstance(model_metadata["coefficient_ranking"], list)
+    assert len(model_metadata["coefficient_ranking"]) == len(model_metadata["feature_columns"])
 
 
 
