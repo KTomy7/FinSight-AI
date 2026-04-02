@@ -17,7 +17,7 @@ from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 from finsight.infrastructure.features import PandasFeatureStore
 from finsight.infrastructure.ml.registry import LocalFileModelRegistry
-from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
+from finsight.infrastructure.ml.sklearn import LinearSklearnModel, NaiveBaselineModel, SklearnModelRouter
 
 
 class _StubFetchMarketData:
@@ -255,6 +255,33 @@ def test_execute_rejects_non_positive_years(tmp_path) -> None:
         )
 
     assert stub.calls == []
+
+
+def test_execute_supports_ridge_via_router(tmp_path) -> None:
+    tickers = ("AAPL",)
+    stub = _StubFetchMarketData({ticker: _make_ohlcv_series(ticker) for ticker in tickers})
+    train_model = TrainModel(
+        fetch_market_data=cast(FetchMarketData, cast(object, stub)),
+        feature_store=PandasFeatureStore(),
+        model=SklearnModelRouter(adapters=[NaiveBaselineModel(), LinearSklearnModel()]),
+        model_registry=LocalFileModelRegistry(),
+        training_tickers=tickers,
+        supported_model_types=("ridge",),
+    )
+
+    response = train_model.execute(
+        TrainModelRequest(
+            cutoff_date="2025-06-01",
+            years=2,
+            end="2026-03-17",
+            model_types=["ridge"],
+            artifacts_dir=str(tmp_path / "runs"),
+        )
+    )
+
+    assert "ridge" in response.run_dirs
+    assert set(SUPPORTED_METRIC_NAMES).issubset(response.metrics["ridge"])
+    assert stub.calls != []
 
 
 
