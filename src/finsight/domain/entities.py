@@ -28,3 +28,12 @@ class StockSummary:
     ticker: Ticker
     data: Mapping[str, Any]
 
+
+@dataclass(frozen=True, slots=True)
+class ModelEvaluationResult:
+    metrics: Mapping[str, float]
+    predictions: object
+    trained_artifact: object
+    model_metadata: Mapping[str, Any]
+
+

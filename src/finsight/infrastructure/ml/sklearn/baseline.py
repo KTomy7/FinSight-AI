@@ -5,6 +5,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from finsight.domain.entities import ModelEvaluationResult
 from finsight.domain.metrics import forecast_metrics
 from finsight.domain.ports import ModelPort
 
@@ -20,7 +21,7 @@ class NaiveBaselineModel(ModelPort):
         model_type: str,
         target_column: str,
         id_columns: Sequence[str] = ("date", "ticker"),
-    ) -> tuple[dict[str, float], pd.DataFrame]:
+    ) -> ModelEvaluationResult:
         train_df = self._require_dataframe(train_dataset, arg_name="train_dataset")
         test_df = self._require_dataframe(test_dataset, arg_name="test_dataset")
 
@@ -40,8 +41,10 @@ class NaiveBaselineModel(ModelPort):
 
         if model_type == "naive_zero":
             y_pred = np.zeros_like(y_test, dtype=float)
+            baseline_value = 0.0
         else:
-            y_pred = np.full_like(y_test, fill_value=float(np.mean(y_train)), dtype=float)
+            baseline_value = float(np.mean(y_train))
+            y_pred = np.full_like(y_test, fill_value=baseline_value, dtype=float)
 
         metrics = forecast_metrics(y_true=y_test.tolist(), y_pred=y_pred.tolist())
 
@@ -50,7 +53,22 @@ class NaiveBaselineModel(ModelPort):
         predictions["y_true"] = y_test
         predictions["y_pred"] = y_pred
 
-        return metrics, predictions.reset_index(drop=True)
+        return ModelEvaluationResult(
+            metrics=metrics,
+            predictions=predictions.reset_index(drop=True),
+            trained_artifact={
+                "adapter": "NaiveBaselineModel",
+                "model_id": model_type,
+                "baseline_value": baseline_value,
+            },
+            model_metadata={
+                "adapter": "NaiveBaselineModel",
+                "model_id": model_type,
+                "baseline_value": baseline_value,
+                "n_train": int(len(train_df)),
+                "n_test": int(len(test_df)),
+            },
+        )
 
     def supported_model_types(self) -> tuple[str, ...]:
         return SUPPORTED_MODEL_TYPES

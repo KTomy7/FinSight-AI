@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from finsight.domain.entities import ModelEvaluationResult
 from finsight.domain.ports import ModelPort
 
 
@@ -36,7 +37,7 @@ class SklearnModelRouter(ModelPort):
         model_type: str,
         target_column: str,
         id_columns: Sequence[str] = ("date", "ticker"),
-    ) -> tuple[dict[str, float], object]:
+    ) -> ModelEvaluationResult:
         adapter = self._adapter_by_model_id.get(model_type)
         if adapter is None:
             raise ValueError(
