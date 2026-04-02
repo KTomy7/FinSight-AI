@@ -6,7 +6,7 @@ import pytest
 from finsight.application.contracts import build_run_manifest
 from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
 from finsight.infrastructure.ml.registry import LocalFileModelRegistry
-from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
+from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineArtifact
 
 
 def test_local_file_model_registry_round_trip_loads_model_and_metadata(tmp_path: Path) -> None:
@@ -16,7 +16,7 @@ def test_local_file_model_registry_round_trip_loads_model_and_metadata(tmp_path:
 
     run_dir = Path(registry.create_run_dir(artifact_root=str(artifact_root), run_id=run_id))
 
-    model = NaiveBaselineModel()
+    model = NaiveBaselineArtifact(baseline_value=0.0)
     metrics = {
         METRIC_MAE: 0.1,
         METRIC_RMSE: 0.2,
@@ -71,14 +71,15 @@ def test_local_file_model_registry_round_trip_loads_model_and_metadata(tmp_path:
     loaded_manifest = registry.load_manifest(artifact_root=str(artifact_root), run_id=run_dir.name)
     loaded_bundle = registry.load_run_artifacts(artifact_root=str(artifact_root), run_id=run_dir.name)
 
-    assert isinstance(loaded_model, NaiveBaselineModel)
+    assert isinstance(loaded_model, NaiveBaselineArtifact)
     assert loaded_metrics[METRIC_MAE] == metrics[METRIC_MAE]
     assert loaded_metrics[METRIC_DIRECTION_ACCURACY] == metrics[METRIC_DIRECTION_ACCURACY]
     assert loaded_manifest["run_id"] == run_dir.name
     assert loaded_manifest["model_id"] == "naive_zero"
     assert loaded_bundle.run_id == run_dir.name
     assert loaded_bundle.run_dir == str(run_dir)
-    assert isinstance(loaded_bundle.model, NaiveBaselineModel)
+    assert isinstance(loaded_bundle.model, NaiveBaselineArtifact)
+    assert loaded_bundle.model.predict(pd.DataFrame([{}, {}])).tolist() == [0.0, 0.0]
     assert loaded_bundle.metrics[METRIC_RMSE] == metrics[METRIC_RMSE]
     assert loaded_bundle.manifest["artifact_paths"]["manifest"].endswith("manifest.json")
     assert Path(loaded_bundle.model_path).exists()

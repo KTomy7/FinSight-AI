@@ -11,6 +11,7 @@ from finsight.application.use_cases.train_model import (
 from finsight.domain.metrics import SUPPORTED_METRIC_NAMES, METRIC_DIRECTION_ACCURACY
 from finsight.infrastructure.features import TimeSplitPolicy
 from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
+from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineArtifact
 
 
 def _synthetic_feature_frame() -> pd.DataFrame:
@@ -67,9 +68,13 @@ def test_naive_baseline_model_predictions_and_metrics() -> None:
     )
 
     assert np.allclose(zero_result.predictions["y_pred"].to_numpy(), 0.0)
+    assert isinstance(zero_result.trained_artifact, NaiveBaselineArtifact)
+    assert np.allclose(zero_result.trained_artifact.predict(test_df), 0.0)
 
     expected_mean = float(train_df["target_ret_1d"].mean())
     assert np.allclose(mean_result.predictions["y_pred"].to_numpy(), expected_mean)
+    assert isinstance(mean_result.trained_artifact, NaiveBaselineArtifact)
+    assert np.allclose(mean_result.trained_artifact.predict(test_df), expected_mean)
 
     for result in (zero_result, mean_result):
         metrics = result.metrics

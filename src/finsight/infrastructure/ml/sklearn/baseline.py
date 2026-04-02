@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Sequence
 
 import numpy as np
@@ -10,6 +11,24 @@ from finsight.domain.metrics import forecast_metrics
 from finsight.domain.ports import ModelPort
 
 SUPPORTED_MODEL_TYPES = ("naive_zero", "naive_mean")
+
+
+@dataclass(frozen=True, slots=True)
+class NaiveBaselineArtifact:
+    baseline_value: float
+
+    def predict(self, X: object) -> np.ndarray:
+        n_rows = self._row_count(X)
+        return np.full(n_rows, fill_value=self.baseline_value, dtype=float)
+
+    @staticmethod
+    def _row_count(X: object) -> int:
+        if hasattr(X, "shape") and getattr(X, "shape"):
+            return int(getattr(X, "shape")[0])
+        try:
+            return int(len(X))  # type: ignore[arg-type]
+        except TypeError as exc:  # pragma: no cover - defensive fallback
+            raise TypeError("predict input must be a sized collection or array-like object.") from exc
 
 
 class NaiveBaselineModel(ModelPort):
@@ -56,11 +75,7 @@ class NaiveBaselineModel(ModelPort):
         return ModelEvaluationResult(
             metrics=metrics,
             predictions=predictions.reset_index(drop=True),
-            trained_artifact={
-                "adapter": "NaiveBaselineModel",
-                "model_id": model_type,
-                "baseline_value": baseline_value,
-            },
+            trained_artifact=NaiveBaselineArtifact(baseline_value=baseline_value),
             model_metadata={
                 "adapter": "NaiveBaselineModel",
                 "model_id": model_type,
