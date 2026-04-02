@@ -28,3 +28,16 @@ class StockSummary:
     ticker: Ticker
     data: Mapping[str, Any]
 
+
+@dataclass(frozen=True, slots=True)
+class ModelRunRecord:
+    """Persisted model-run payload loaded from the model registry."""
+
+    model_run_id: str
+    run_dir: str
+    metrics: dict[str, float | int | str]
+    manifest: dict[str, Any]
+    predictions_path: str
+    model_artifact_path: str | None = None
+
+
