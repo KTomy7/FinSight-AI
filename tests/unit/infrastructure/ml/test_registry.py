@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -155,6 +156,55 @@ def test_load_missing_run_id_raises_clear_error(tmp_path: Path) -> None:
         registry.load_run(artifact_root=str(tmp_path / "runs"), model_run_id="missing_run")
 
 
+def test_load_missing_run_id_does_not_create_artifact_root(tmp_path: Path) -> None:
+    registry = FileSystemModelRegistry()
+    artifact_root = tmp_path / "runs"
+
+    with pytest.raises(FileNotFoundError, match="was not found"):
+        registry.load_run(artifact_root=str(artifact_root), model_run_id="missing_run")
+
+    assert not artifact_root.exists()
+
+
+def test_load_run_rejects_run_dir_resolving_outside_artifact_root(tmp_path: Path) -> None:
+    registry = FileSystemModelRegistry()
+    artifact_root = tmp_path / "runs"
+    artifact_root.mkdir(parents=True, exist_ok=True)
+
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir(parents=True, exist_ok=True)
+    (outside_dir / "metrics.json").write_text(json.dumps({"mae": 0.1}), encoding="utf-8")
+    (outside_dir / "manifest.json").write_text(json.dumps({"model_id": "naive_zero"}), encoding="utf-8")
+    (outside_dir / "predictions.csv").write_text("date,ticker,y_true,y_pred\n", encoding="utf-8")
+
+    run_id = "2026-04-02T114500Z__symlink"
+    symlink_path = artifact_root / run_id
+    try:
+        os.symlink(str(outside_dir), str(symlink_path), target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"Symlink creation not available in this environment: {exc}")
+
+    with pytest.raises(FileNotFoundError, match="was not found"):
+        registry.load_run(artifact_root=str(artifact_root), model_run_id=run_id)
+
+
+def test_load_run_rejects_non_scalar_metric_values(tmp_path: Path) -> None:
+    registry = FileSystemModelRegistry()
+    artifact_root = tmp_path / "runs"
+    model_run_id = "2026-04-02T120000Z__bad_metrics"
+    run_dir = Path(registry.create_run_dir(artifact_root=str(artifact_root), run_id=model_run_id))
+
+    (run_dir / "metrics.json").write_text(
+        json.dumps({"mae": 0.1, "nested": {"value": 1}}),
+        encoding="utf-8",
+    )
+    (run_dir / "manifest.json").write_text(json.dumps({"model_id": "naive_zero"}), encoding="utf-8")
+    (run_dir / "predictions.csv").write_text("date,ticker,y_true,y_pred\n", encoding="utf-8")
+
+    with pytest.raises(TypeError, match="Metric 'nested' has unsupported type"):
+        registry.load_run(artifact_root=str(artifact_root), model_run_id=model_run_id)
+
+
 @pytest.mark.parametrize(
     "invalid_run_id,expected_error",
     [
@@ -202,5 +252,20 @@ def test_save_model_artifact_rejects_filename_with_path_separators(
             run_dir=run_dir,
             model_artifact=b"artifact-bytes",
             filename=invalid_filename,
+        )
+
+
+def test_save_model_artifact_rejects_non_string_filename_type(tmp_path: Path) -> None:
+    registry = FileSystemModelRegistry()
+    run_dir = registry.create_run_dir(
+        artifact_root=str(tmp_path / "runs"),
+        run_id="2026-04-02T121500Z__naive_zero",
+    )
+
+    with pytest.raises(TypeError, match="filename must be a string"):
+        registry.save_model_artifact(
+            run_dir=run_dir,
+            model_artifact=b"artifact-bytes",
+            filename=123,  # type: ignore[arg-type]
         )
 

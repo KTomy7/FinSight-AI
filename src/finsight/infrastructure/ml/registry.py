@@ -26,7 +26,7 @@ class FileSystemModelRegistry(ModelRegistryPort):
     PREDICTIONS_FILENAME = "predictions.csv"
 
     def create_run_dir(self, *, artifact_root: str, run_id: str) -> str:
-        root = self._resolve_artifact_root(artifact_root)
+        root = self._resolve_artifact_root_for_write(artifact_root)
         safe_run_id = self._validate_run_id(run_id)
 
         base_path = root / safe_run_id
@@ -100,9 +100,16 @@ class FileSystemModelRegistry(ModelRegistryPort):
         raise TypeError("model_artifact must be bytes-like or a filesystem path.")
 
     def load_run(self, *, artifact_root: str, model_run_id: str) -> ModelRunRecord:
-        root = self._resolve_artifact_root(artifact_root)
+        root = self._resolve_artifact_root_readonly(artifact_root)
         safe_run_id = self._validate_run_id(model_run_id)
         run_dir = (root / safe_run_id).resolve()
+
+        try:
+            run_dir.relative_to(root)
+        except ValueError as exc:
+            raise FileNotFoundError(
+                f"Model run '{model_run_id}' was not found under '{root}'."
+            ) from exc
 
         if not run_dir.exists() or not run_dir.is_dir():
             raise FileNotFoundError(f"Model run '{model_run_id}' was not found under '{root}'.")
@@ -124,7 +131,7 @@ class FileSystemModelRegistry(ModelRegistryPort):
         return ModelRunRecord(
             model_run_id=safe_run_id,
             run_dir=str(run_dir),
-            metrics={str(key): value for key, value in metrics.items()},
+            metrics=self._validate_metrics(metrics),
             manifest=dict(manifest),
             predictions_path=str(predictions_path),
             model_artifact_path=model_artifact_path,
@@ -151,7 +158,10 @@ class FileSystemModelRegistry(ModelRegistryPort):
 
     @staticmethod
     def _validate_artifact_filename(filename: str) -> str:
-        candidate = str(filename).strip()
+        if not isinstance(filename, str):
+            raise TypeError("filename must be a string.")
+
+        candidate = filename.strip()
         if not candidate:
             raise ValueError("filename must be a non-empty string.")
         # Reject both separator styles regardless of host OS.
@@ -163,10 +173,14 @@ class FileSystemModelRegistry(ModelRegistryPort):
         return candidate
 
     @staticmethod
-    def _resolve_artifact_root(artifact_root: str) -> Path:
+    def _resolve_artifact_root_for_write(artifact_root: str) -> Path:
         root = Path(artifact_root).expanduser().resolve()
         root.mkdir(parents=True, exist_ok=True)
         return root
+
+    @staticmethod
+    def _resolve_artifact_root_readonly(artifact_root: str) -> Path:
+        return Path(artifact_root).expanduser().resolve()
 
     @staticmethod
     def _resolve_run_dir(run_dir: str) -> Path:
@@ -191,6 +205,20 @@ class FileSystemModelRegistry(ModelRegistryPort):
         if not isinstance(raw_payload, Mapping):
             raise TypeError(f"{context} artifact must contain a JSON object, but got {type(raw_payload).__name__}.")
         return dict(raw_payload)
+
+    @staticmethod
+    def _validate_metrics(metrics: Mapping[str, Any]) -> dict[str, float | int | str]:
+        validated_metrics: dict[str, float | int | str] = {}
+        for key, value in metrics.items():
+            str_key = str(key)
+            if isinstance(value, (int, float, str)):
+                validated_metrics[str_key] = value
+                continue
+            raise TypeError(
+                f"Metric '{str_key}' has unsupported type '{type(value).__name__}'; "
+                "expected int, float, or str."
+            )
+        return validated_metrics
 
     @staticmethod
     def _normalize_rows(predictions: object) -> list[dict[str, Any]]:
