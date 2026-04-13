@@ -123,7 +123,7 @@ class Forecast:
         self._model_registry = model_registry
 
     def execute(self, request: application_dto.ForecastRequest) -> application_dto.ForecastResult:
-        ticker = _require_non_empty_text(request.ticker, field_name="ticker")
+        ticker = _require_non_empty_text(request.ticker, field_name="ticker").upper()
         model_id = _require_non_empty_text(request.model_id, field_name="model_id")
 
         if request.horizon_days <= 0:
@@ -224,6 +224,8 @@ class Forecast:
             current_date = next_date
             previous_close = float(next_close)
             previous_volume = float(next_volume)
+
+        generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
         return application_dto.ForecastResult(
             model_id=model_id,
