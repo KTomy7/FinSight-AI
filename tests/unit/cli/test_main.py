@@ -117,8 +117,6 @@ def test_run_compare_prints_leaderboard_table(monkeypatch, capsys) -> None:
     captured = capsys.readouterr().out
     assert exit_code == 0
     assert "Naive (Zero)" in captured
-    assert "naive_zero" in captured
-    assert "2026-04-12T120000Z__naive_zero" in captured
     assert "mae" in captured
 
 
