@@ -6,13 +6,20 @@ import pandas as pd
 
 from finsight.domain.entities import OHLCVSeries
 from finsight.domain.ports import FeatureStorePort
-from finsight.infrastructure.features.feature_pipeline import FEATURE_COLUMNS, build_feature_dataset
+from finsight.infrastructure.features.feature_pipeline import (
+    FEATURE_COLUMNS,
+    build_feature_dataset,
+    build_inference_feature_dataset,
+)
 from finsight.infrastructure.features.policies import TimeSplitPolicy
 
 
 class PandasFeatureStore(FeatureStorePort):
     def build_feature_dataset(self, series_list: Sequence[OHLCVSeries]) -> pd.DataFrame:
         return build_feature_dataset(list(series_list))
+
+    def build_inference_feature_dataset(self, series_list: Sequence[OHLCVSeries]) -> pd.DataFrame:
+        return build_inference_feature_dataset(list(series_list))
 
     def split_train_test(
         self,
@@ -51,5 +58,4 @@ class PandasFeatureStore(FeatureStorePort):
         if not isinstance(dataset, pd.DataFrame):
             raise TypeError(f"{arg_name} must be a pandas DataFrame.")
         return dataset
-
 

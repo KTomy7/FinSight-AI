@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from typing import TYPE_CHECKING
 
-from finsight.application.dto import FetchMarketDataRequest
+from finsight.application.dto import FetchMarketDataRequest, ForecastRequest, ForecastResult
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
+from finsight.application.use_cases.forecast import Forecast
 from finsight.adapters.web_streamlit.ticker_options import build_ticker_select_items
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
@@ -19,6 +20,11 @@ _SETTINGS = get_settings()
 def _fetch_market_data_uc() -> FetchMarketData:
     # Use the composition root so adapters do not wire concrete infra directly.
     return build_container().fetch_market_data
+
+
+@st.cache_resource(ttl=_SETTINGS.cache.resource_ttl_seconds)
+def _forecast_uc() -> Forecast:
+    return build_container().forecast
 
 
 @st.cache_data(ttl=_SETTINGS.cache.data_ttl_seconds)
@@ -45,6 +51,27 @@ def _render_market_data(ticker: str) -> None:
     ax.set_ylabel("Close Price ($)")
     ax.set_title(f"{ticker} Closing Price")
     st.pyplot(fig)
+
+
+def _render_forecast(result: ForecastResult) -> None:
+    import pandas as pd
+
+    predictions = result.predictions
+    frame = pd.DataFrame(predictions)
+    if frame.empty:
+        st.warning("No forecast rows were returned.")
+        return
+
+    st.subheader("Forecast Results")
+    st.dataframe(frame, use_container_width=True)
+
+    if {"date", "pred_close"}.issubset(frame.columns):
+        chart_df = frame[["date", "pred_close"]].copy()
+        chart_df["date"] = pd.to_datetime(chart_df["date"], errors="coerce")
+        chart_df = chart_df.dropna(subset=["date"]).set_index("date")
+        if not chart_df.empty:
+            st.subheader("Predicted Close Price")
+            st.line_chart(chart_df["pred_close"])
 
 
 def render():
@@ -83,7 +110,6 @@ def render():
 
     selected_model_id: str | None = None
 
-    # TODO: selected_model_id will be passed to the forecast use case.
     with col2:
         if has_prediction_models:
             selected_index = prediction_model_ids.index(default_model_id)
@@ -106,7 +132,6 @@ def render():
             "No prediction-enabled models are configured."
         )
 
-    # TODO: horizon will be used by the forecast use case.
     horizon = st.slider(
         "Prediction horizon (in days)",
         min_value=model_defaults.horizon_min,
@@ -130,6 +155,18 @@ def render():
             st.error(f"Failed to fetch data: {e}")
 
     if predict_button and selected_model_id is not None:
-        st.info(
-            f"Prediction flow is not implemented yet (selected model_id='{selected_model_id}')."
-        )
+        try:
+            forecast_result = _forecast_uc().execute(
+                ForecastRequest(
+                    ticker=ticker,
+                    model_id=selected_model_id,
+                    horizon_days=horizon,
+                )
+            )
+            _render_forecast(forecast_result)
+        except FileNotFoundError as error:
+            st.error(f"No trained run artifacts were found: {error}")
+        except (ValueError, TypeError) as error:
+            st.error(f"Unable to run forecast: {error}")
+        except Exception as error:  # pragma: no cover - defensive fallback for UI resilience
+            st.error(f"Forecast failed unexpectedly: {error}")

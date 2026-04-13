@@ -132,9 +132,31 @@ def finalize_feature_frame(df: pd.DataFrame, *, dropna: bool = True) -> pd.DataF
     return final_df.reset_index(drop=True)
 
 
+def finalize_inference_feature_frame(df: pd.DataFrame, *, dropna: bool = True) -> pd.DataFrame:
+    ordered_columns = ["date", "ticker", *FEATURE_COLUMNS]
+    missing = [col for col in ordered_columns if col not in df.columns]
+    if missing:
+        raise ValueError(f"Feature frame is missing expected columns: {missing}")
+
+    final_df = df[ordered_columns].copy()
+    if dropna:
+        final_df = final_df.dropna(subset=[*FEATURE_COLUMNS])
+
+    final_df = final_df.sort_values(["ticker", "date"]).drop_duplicates(
+        subset=["ticker", "date"], keep="last"
+    )
+    return final_df.reset_index(drop=True)
+
+
 def build_feature_dataset(series_list: list[OHLCVSeries]) -> pd.DataFrame:
     panel = to_panel_df(series_list)
     panel = add_features(panel)
     panel = add_target(panel)
     return finalize_feature_frame(panel)
+
+
+def build_inference_feature_dataset(series_list: list[OHLCVSeries]) -> pd.DataFrame:
+    panel = to_panel_df(series_list)
+    panel = add_features(panel)
+    return finalize_inference_feature_frame(panel)
 

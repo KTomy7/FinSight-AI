@@ -395,12 +395,53 @@ class BacktestResult:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ForecastRequest:
+    ticker: str
+    model_id: str
+    horizon_days: int
+    artifacts_dir: str = "artifacts/runs"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticker": self.ticker,
+            "model_id": self.model_id,
+            "horizon_days": self.horizon_days,
+            "artifacts_dir": self.artifacts_dir,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> ForecastRequest:
+        raw_ticker = payload.get("ticker", "")
+        ticker = raw_ticker.strip() if isinstance(raw_ticker, str) else ""
+
+        raw_model_id = payload.get("model_id", "")
+        model_id = raw_model_id.strip() if isinstance(raw_model_id, str) else ""
+
+        raw_artifacts_dir = payload.get("artifacts_dir")
+        if raw_artifacts_dir is None:
+            artifacts_dir = "artifacts/runs"
+        elif isinstance(raw_artifacts_dir, str):
+            artifacts_dir_candidate = raw_artifacts_dir.strip()
+            artifacts_dir = artifacts_dir_candidate or "artifacts/runs"
+        else:
+            artifacts_dir = str(raw_artifacts_dir)
+
+        return cls(
+            ticker=ticker,
+            model_id=model_id,
+            horizon_days=_safe_int(payload.get("horizon_days", 0), default=0),
+            artifacts_dir=artifacts_dir,
+        )
+
+
 __all__ = [
     "BacktestResult",
     "DatasetSpec",
     "FeatureSpec",
     "FetchMarketDataRequest",
     "FetchMarketDataResult",
+    "ForecastRequest",
     "ForecastResult",
     "MetricValue",
     "ModelRunArtifacts",

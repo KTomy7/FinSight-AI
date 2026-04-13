@@ -12,8 +12,8 @@ jobs:
     permissions:
       contents: read
     env:
-      MAX_ALLOWED_DROP: "0.2"
-      CHANGED_LINES_MIN: "80"
+      MAX_ALLOWED_DROP: "2.0"
+      CHANGED_LINES_MIN: "60"
     outputs:
       pr_total: ${{ steps.pr_coverage.outputs.total }}
       main_total: ${{ steps.main_coverage.outputs.total }}

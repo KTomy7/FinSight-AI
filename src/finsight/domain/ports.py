@@ -25,6 +25,9 @@ class FeatureStorePort(Protocol):
     def build_feature_dataset(self, series_list: Sequence[OHLCVSeries]) -> object:
         raise NotImplementedError
 
+    def build_inference_feature_dataset(self, series_list: Sequence[OHLCVSeries]) -> object:
+        raise NotImplementedError
+
     def split_train_test(
         self,
         dataset: object,
@@ -67,6 +70,9 @@ class ModelRegistryPort(Protocol):
     def create_run_dir(self, *, artifact_root: str, run_id: str) -> str:
         raise NotImplementedError
 
+    def latest_run_id(self, *, artifact_root: str, model_id: str) -> str:
+        raise NotImplementedError
+
     def save_model(self, *, run_dir: str, model: object) -> None:
         raise NotImplementedError
 
@@ -90,5 +96,4 @@ class ModelRegistryPort(Protocol):
 
     def load_run_artifacts(self, *, artifact_root: str, run_id: str) -> object:
         raise NotImplementedError
-
 
