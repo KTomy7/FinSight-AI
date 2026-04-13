@@ -1,8 +1,0 @@
-[run]
-source = finsight
-omit = tests/*
-
-[paths]
-source =
-   src/finsight
-   .venv/Lib/site-packages/finsight

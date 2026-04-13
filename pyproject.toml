@@ -49,6 +49,12 @@ addopts = "-q --cov=src/finsight --cov-report=term-missing"
 branch = true
 source = ["src/finsight"]
 
+[tool.coverage.paths]
+source = [
+  "src/finsight",
+  ".venv/Lib/site-packages/finsight",
+]
+
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
