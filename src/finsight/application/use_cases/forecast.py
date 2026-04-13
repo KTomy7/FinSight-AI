@@ -107,8 +107,8 @@ def _append_synthetic_history_row(
         columns["close"]: float(next_close),
         columns["volume"]: float(next_volume),
     }
-    return pd.concat([history_df, pd.DataFrame([synthetic_row])], ignore_index=True)
-
+    history_df.loc[len(history_df)] = synthetic_row
+    return history_df
 
 class Forecast:
     def __init__(
