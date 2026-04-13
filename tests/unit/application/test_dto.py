@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from finsight.application.dto import (
     BacktestResult,
+    CompareModelsRequest,
+    CompareModelsResult,
     DatasetSpec,
     FeatureSpec,
     FetchMarketDataRequest,
     ForecastRequest,
     ForecastResult,
+    ModelComparisonRow,
     TrainModelRequest,
     TrainModelResult,
 )
@@ -80,6 +83,31 @@ def test_train_model_result_roundtrip_with_specs() -> None:
     restored = TrainModelResult.from_dict(payload)
 
     assert restored == result
+
+
+def test_compare_models_request_and_result_roundtrip() -> None:
+    request = CompareModelsRequest(
+        model_ids=["naive_zero", "ridge"],
+        artifacts_dir="artifacts/runs",
+        rank_by=["mae", "direction_accuracy"],
+        metric_directions={"direction_accuracy": "desc"},
+    )
+    result = CompareModelsResult(
+        rows=[
+            ModelComparisonRow(
+                rank=1,
+                model_id="ridge",
+                run_id="2026-04-12T120000Z__ridge",
+                metrics={"mae": 0.09, "direction_accuracy": 0.87},
+                sort_key=(0.09, -0.87, "ridge", "2026-04-12T120000Z__ridge"),
+            )
+        ],
+        rank_by=["mae", "direction_accuracy"],
+        metric_directions={"mae": "asc", "direction_accuracy": "desc"},
+    )
+
+    assert CompareModelsRequest.from_dict(request.to_dict()) == request
+    assert CompareModelsResult.from_dict(result.to_dict()) == result
 
 
 def test_forecast_and_backtest_results_are_serializable() -> None:
