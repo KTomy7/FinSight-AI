@@ -52,6 +52,7 @@ Orchestrates domain objects and ports to fulfil business use cases.
 |---|---|
 | `use_cases/train_model.py` | `TrainModel` — builds features, evaluates models, writes run manifests |
 | `use_cases/fetch_market_data.py` | `FetchMarketData` — fetches and summarises OHLCV data |
+| `use_cases/compare_models.py` | `CompareModels` — ranks model runs into a deterministic leaderboard |
 | `dto.py` | All request/response data transfer objects (see [DTO conventions](../conventions/naming-and-contracts.md)) |
 | `contracts/run_manifest.py` | `build_run_manifest`, `validate_run_manifest` — structured training-run records |
 
@@ -102,7 +103,7 @@ Thin presentation layer. Converts use case results into Streamlit widgets.
 
 ### `cli/`
 
-CLI entry point. Parses arguments and delegates to `TrainModel` via the container.
+CLI entry point. Parses arguments and delegates to `TrainModel` and `CompareModels` via the container.
 
 ---
 
@@ -138,6 +139,17 @@ CLI / Streamlit view
        ├─ build_run_manifest + validate_run_manifest
        ├─ ModelRegistryPort.save_manifest               (local filesystem)
        └─ returns TrainModelResult
+```
+
+### Comparing trained models
+
+```
+CLI / Streamlit view
+  └─ CompareModels.execute(CompareModelsRequest)
+       ├─ ModelRegistryPort.latest_run_id              (locates latest run for each model)
+       ├─ ModelRegistryPort.load_run_artifacts          (loads metrics and manifest data)
+       ├─ deterministic metric ranking + tie-breaks
+       └─ returns CompareModelsResult                   (table-ready leaderboard rows)
 ```
 
 ### Fetching market data
