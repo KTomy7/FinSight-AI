@@ -9,7 +9,9 @@ from finsight.infrastructure.features.feature_pipeline import (
     add_features,
     add_target,
     build_feature_dataset,
+    build_inference_feature_dataset,
     finalize_feature_frame,
+    finalize_inference_feature_frame,
     to_panel_df,
 )
 
@@ -254,3 +256,21 @@ def test_build_feature_dataset_empty_input_returns_empty_frame():
     assert list(out.columns) == ["date", "ticker", *FEATURE_COLUMNS, *TARGET_COLUMNS]
 
 
+def test_finalize_inference_feature_frame_rejects_missing_feature_columns():
+    df = pd.DataFrame({"date": pd.to_datetime(["2020-01-01"]), "ticker": ["AAA"]})
+
+    with pytest.raises(ValueError, match="missing expected columns"):
+        finalize_inference_feature_frame(df)
+
+
+def test_build_inference_feature_dataset_excludes_target_column_and_keeps_latest_row():
+    series = _make_ohlcv_series("AAA", [100.0 + (idx * 1.0) for idx in range(80)])
+
+    out = build_inference_feature_dataset([series])
+
+    assert not out.empty
+    assert list(out.columns) == ["date", "ticker", *FEATURE_COLUMNS]
+    assert "target_ret_1d" not in out.columns
+
+    latest_date = out[out["ticker"] == "AAA"]["date"].max()
+    assert str(latest_date.date()) == "2020-03-20"

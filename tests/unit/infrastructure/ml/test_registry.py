@@ -150,3 +150,34 @@ def test_load_run_artifacts_raises_for_non_directory_path(tmp_path: Path) -> Non
         registry.load_run_artifacts(artifact_root=str(artifact_root), run_id="run-a")
 
 
+def test_latest_run_id_returns_most_recent_model_run(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+    artifact_root = tmp_path / "runs"
+    artifact_root.mkdir(parents=True)
+
+    (artifact_root / "2026-04-01T120000Z__ridge").mkdir()
+    (artifact_root / "2026-04-02T120000Z__ridge").mkdir()
+    (artifact_root / "2026-04-03T120000Z__naive_zero").mkdir()
+    (artifact_root / "2026-04-04T120000Z__ridge_1").mkdir()
+    (artifact_root / "notes.txt").write_text("ignored", encoding="utf-8")
+
+    latest = registry.latest_run_id(artifact_root=str(artifact_root), model_id="ridge")
+
+    assert latest == "2026-04-02T120000Z__ridge"
+
+
+def test_latest_run_id_raises_clear_error_when_no_matching_runs_exist(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+    artifact_root = tmp_path / "runs"
+    artifact_root.mkdir(parents=True)
+    (artifact_root / "2026-04-02T120000Z__naive_zero").mkdir()
+
+    with pytest.raises(FileNotFoundError, match="No runs found for model_id 'ridge'"):
+        registry.latest_run_id(artifact_root=str(artifact_root), model_id="ridge")
+
+
+def test_latest_run_id_rejects_blank_model_id(tmp_path: Path) -> None:
+    registry = LocalFileModelRegistry()
+
+    with pytest.raises(ValueError, match="model_id must be a non-empty string"):
+        registry.latest_run_id(artifact_root=str(tmp_path), model_id="   ")
