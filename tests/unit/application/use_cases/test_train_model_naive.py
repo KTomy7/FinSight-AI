@@ -11,6 +11,7 @@ from finsight.application.use_cases.train_model import (
 from finsight.domain.metrics import SUPPORTED_METRIC_NAMES, METRIC_DIRECTION_ACCURACY
 from finsight.infrastructure.features import TimeSplitPolicy
 from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
+from finsight.infrastructure.ml.sklearn.baseline import NaiveBaselineArtifact
 
 
 def _synthetic_feature_frame() -> pd.DataFrame:
@@ -53,25 +54,31 @@ def test_naive_baseline_model_predictions_and_metrics() -> None:
     assert test_df["date"].min().date().isoformat() == "2024-01-04"
 
     model = NaiveBaselineModel()
-    zero_metrics, zero_predictions = model.evaluate(
+    zero_result = model.evaluate(
         train_dataset=train_df,
         test_dataset=test_df,
         model_type="naive_zero",
         target_column="target_ret_1d",
     )
-    mean_metrics, mean_predictions = model.evaluate(
+    mean_result = model.evaluate(
         train_dataset=train_df,
         test_dataset=test_df,
         model_type="naive_mean",
         target_column="target_ret_1d",
     )
 
-    assert np.allclose(zero_predictions["y_pred"].to_numpy(), 0.0)
+    assert np.allclose(zero_result.predictions["y_pred"].to_numpy(), 0.0)
+    assert isinstance(zero_result.trained_artifact, NaiveBaselineArtifact)
+    assert np.allclose(zero_result.trained_artifact.predict(test_df), 0.0)
 
     expected_mean = float(train_df["target_ret_1d"].mean())
-    assert np.allclose(mean_predictions["y_pred"].to_numpy(), expected_mean)
+    assert np.allclose(mean_result.predictions["y_pred"].to_numpy(), expected_mean)
+    assert isinstance(mean_result.trained_artifact, NaiveBaselineArtifact)
+    assert np.allclose(mean_result.trained_artifact.predict(test_df), expected_mean)
 
-    for metrics, predictions in ((zero_metrics, zero_predictions), (mean_metrics, mean_predictions)):
+    for result in (zero_result, mean_result):
+        metrics = result.metrics
+        predictions = result.predictions
         assert set(SUPPORTED_METRIC_NAMES).issubset(metrics.keys())
         assert 0.0 <= metrics[METRIC_DIRECTION_ACCURACY] <= 1.0
         assert list(predictions.columns) == ["date", "ticker", "y_true", "y_pred"]

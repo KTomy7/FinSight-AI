@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
@@ -16,8 +17,8 @@ from finsight.domain.entities import OHLCVSeries
 from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 from finsight.infrastructure.features import PandasFeatureStore
-from finsight.infrastructure.ml.sklearn import NaiveBaselineModel
-from finsight.infrastructure.persistence import LocalFileModelRegistry
+from finsight.infrastructure.ml.registry import LocalFileModelRegistry
+from finsight.infrastructure.ml.sklearn import LinearSklearnModel, NaiveBaselineModel, SklearnModelRouter
 
 
 class _StubFetchMarketData:
@@ -255,6 +256,53 @@ def test_execute_rejects_non_positive_years(tmp_path) -> None:
         )
 
     assert stub.calls == []
+
+
+def test_execute_supports_ridge_via_router(tmp_path) -> None:
+    tickers = ("AAPL",)
+    stub = _StubFetchMarketData({ticker: _make_ohlcv_series(ticker) for ticker in tickers})
+    train_model = TrainModel(
+        fetch_market_data=cast(FetchMarketData, cast(object, stub)),
+        feature_store=PandasFeatureStore(),
+        model=SklearnModelRouter(adapters=[NaiveBaselineModel(), LinearSklearnModel()]),
+        model_registry=LocalFileModelRegistry(),
+        training_tickers=tickers,
+        supported_model_types=("ridge",),
+    )
+
+    response = train_model.execute(
+        TrainModelRequest(
+            cutoff_date="2025-06-01",
+            years=2,
+            end="2026-03-17",
+            model_types=["ridge"],
+            artifacts_dir=str(tmp_path / "runs"),
+        )
+    )
+
+    assert "ridge" in response.run_dirs
+    assert set(SUPPORTED_METRIC_NAMES).issubset(response.metrics["ridge"])
+    assert stub.calls != []
+
+    loaded_model = LocalFileModelRegistry().load_model(
+        artifact_root=str(tmp_path / "runs"),
+        run_id=Path(response.run_dirs["ridge"]).name,
+    )
+    assert loaded_model.__class__.__name__ == "Pipeline"
+    assert "ridge" in loaded_model.named_steps
+    assert "scaler" in loaded_model.named_steps
+
+    manifest_path = Path(response.run_dirs["ridge"]) / "manifest.json"
+    manifest_json = json.loads(manifest_path.read_text(encoding="utf-8"))
+    model_metadata = manifest_json["params"]["model_metadata"]
+    assert model_metadata["model_id"] == "ridge"
+    assert model_metadata["estimator"] == "Pipeline"
+    assert model_metadata["base_estimator"] == "Ridge"
+    assert model_metadata["preprocessing"]["scaler"] == "StandardScaler"
+    assert model_metadata["coefficient_space"] == "standardized"
+    assert isinstance(model_metadata["coefficients"], dict)
+    assert isinstance(model_metadata["coefficient_ranking"], list)
+    assert len(model_metadata["coefficient_ranking"]) == len(model_metadata["feature_columns"])
 
 
 

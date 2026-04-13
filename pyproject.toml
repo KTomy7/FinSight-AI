@@ -15,7 +15,9 @@ dependencies = [
   "matplotlib",
   "yfinance",
   "PyYAML",
-  "numpy"
+  "numpy",
+  "joblib",
+  "scikit-learn"
 ]
 
 [project.optional-dependencies]
@@ -23,9 +25,6 @@ dev = [
   "pytest",
   "pytest-cov",
   "diff-cover",
-]
-ml = [
-  "scikit-learn"
 ]
 
 [project.scripts]
@@ -49,6 +48,12 @@ addopts = "-q --cov=src/finsight --cov-report=term-missing"
 [tool.coverage.run]
 branch = true
 source = ["src/finsight"]
+
+[tool.coverage.paths]
+source = [
+  "src/finsight",
+  ".venv/Lib/site-packages/finsight",
+]
 
 [tool.coverage.report]
 show_missing = true

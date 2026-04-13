@@ -39,7 +39,7 @@ class ModelCatalogEntry:
 DEFAULT_MODEL_CATALOG: tuple[ModelCatalogEntry, ...] = (
     ModelCatalogEntry(id="naive_zero", label="Naive (Zero)", supports_training=True, supports_prediction=True),
     ModelCatalogEntry(id="naive_mean", label="Naive (Mean)", supports_training=True, supports_prediction=True),
-    ModelCatalogEntry(id="ridge", label="Ridge Regression", supports_training=False, supports_prediction=False),
+    ModelCatalogEntry(id="ridge", label="Ridge Regression", supports_training=True, supports_prediction=True),
 )
 
 
