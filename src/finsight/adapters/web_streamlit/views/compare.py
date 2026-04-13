@@ -53,6 +53,10 @@ def render():
     st.markdown(
         "Build a deterministic leaderboard from the latest saved model runs. "
         "Ranking follows the selected metric order, then model ID, then run ID.")
+    st.info(
+        "Metric direction defaults: MAE/RMSE are ranked lower-is-better, while Direction Accuracy is ranked higher-is-better. "
+        "If you reorder metrics, the first metric has the highest priority."
+    )
 
     model_defaults = _SETTINGS.model_defaults
     model_ids = list(model_defaults.training_model_ids())
