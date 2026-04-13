@@ -225,17 +225,6 @@ class Forecast:
             previous_close = float(next_close)
             previous_volume = float(next_volume)
 
-        generated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-        # print to the console the results (pred_ret_1d and pred_close for each predicted day)
-        print(f"Forecast for {ticker} using model {model_id}:")
-        print("date       | pred_ret_1d | pred_close")
-        print("---------------------------------------")
-        for prediction in predictions:
-            print(f"{prediction['date']} | {prediction['pred_ret_1d']:.6f} | {prediction['pred_close']:.2f}")
-
-
-
         return application_dto.ForecastResult(
             model_id=model_id,
             ticker=ticker,
