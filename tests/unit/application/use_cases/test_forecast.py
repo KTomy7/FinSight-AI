@@ -248,6 +248,32 @@ def test_execute_rejects_invalid_request_inputs() -> None:
         forecast.execute(ForecastRequest(ticker="AAPL", model_id="ridge", horizon_days=0))
 
 
+@pytest.mark.parametrize("predicted_value", [float("nan"), float("inf"), float("-inf")])
+def test_execute_rejects_non_finite_model_predictions(predicted_value: float) -> None:
+    history = _make_history("AAPL")
+    model = _PredictSpyModel(expected=[predicted_value], calls=[])
+    artifacts = ModelRunArtifacts(
+        run_id="2026-04-10T120000Z__ridge",
+        run_dir="artifacts/runs/2026-04-10T120000Z__ridge",
+        model_path="model.joblib",
+        metrics_path="metrics.json",
+        manifest_path="manifest.json",
+        predictions_path="predictions.csv",
+        model=model,
+        metrics={},
+        manifest={"feature_columns": ["f2", "f1"]},
+    )
+
+    forecast = Forecast(
+        fetch_market_data=cast(FetchMarketData, cast(object, _StubFetchMarketData(history))),
+        feature_store=_StubFeatureStore(),
+        model_registry=_StubRegistry(artifacts),
+    )
+
+    with pytest.raises(ValueError, match=r"Model predict\(\.\.\.\) must return a finite numeric value"):
+        forecast.execute(ForecastRequest(ticker="AAPL", model_id="ridge", horizon_days=1))
+
+
 def test_execute_advances_dates_from_history_even_when_feature_dates_are_stale() -> None:
     history = _make_history("AAPL")
     model = _PredictSpyModel(expected=[0.01, 0.01, 0.01], calls=[])

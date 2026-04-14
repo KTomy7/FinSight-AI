@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Mapping, Sequence
 
@@ -196,6 +197,8 @@ class Forecast:
                 predicted_return = float(y_pred_raw[0])  # type: ignore[index]
             except (TypeError, ValueError, IndexError) as exc:
                 raise ValueError("Model predict(...) must return at least one numeric value.") from exc
+            if not math.isfinite(predicted_return):
+                raise ValueError("Model predict(...) must return a finite numeric value.")
 
             next_date = _next_business_day(current_date)
             next_close = previous_close * (1.0 + predicted_return)
