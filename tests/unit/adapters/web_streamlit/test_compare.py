@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from finsight.adapters.web_streamlit.views.compare import _build_comparison_frame
+from finsight.adapters.web_streamlit.presenters import ComparisonPresenter
 from finsight.application.dto import CompareModelsResult, ModelComparisonRow
 
 
 def test_build_comparison_frame_orders_columns_and_applies_labels() -> None:
+    """Test that comparison frame formatting works correctly (via presenter)."""
     result = CompareModelsResult(
         rows=[
             ModelComparisonRow(
@@ -21,7 +22,7 @@ def test_build_comparison_frame_orders_columns_and_applies_labels() -> None:
         metric_directions={"mae": "asc", "rmse": "asc", "direction_accuracy": "desc"},
     )
 
-    frame = _build_comparison_frame(result, label_lookup={"ridge": "Ridge Regression"})
+    frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup={"ridge": "Ridge Regression"})
 
     assert isinstance(frame, pd.DataFrame)
     assert list(frame.columns) == ["rank", "model", "model_id", "run_id", "mae", "rmse", "direction_accuracy", "extra"]
