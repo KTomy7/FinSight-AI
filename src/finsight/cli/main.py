@@ -147,15 +147,15 @@ def _run_compare(args: argparse.Namespace) -> int:
     return 0
 
 
-def _run_forecast(_args: argparse.Namespace) -> int:
+def _run_forecast(args: argparse.Namespace) -> int:
     try:
         container = build_container()
         response = container.forecast.execute(
             ForecastRequest(
-                ticker=_args.ticker,
-                model_id=_args.model_id,
-                horizon_days=_args.horizon,
-                artifacts_dir=_args.artifacts_dir,
+                ticker=args.ticker,
+                model_id=args.model_id,
+                horizon_days=args.horizon,
+                artifacts_dir=args.artifacts_dir,
             )
         )
     except ValueError as exc:
@@ -171,7 +171,7 @@ def _run_forecast(_args: argparse.Namespace) -> int:
         print(f"Forecast unexpected error: {exc}", file=sys.stderr)
         return 1
 
-    if _args.as_json:
+    if args.as_json:
         print(json.dumps(response.to_dict(), indent=2, sort_keys=True))
         return 0
 

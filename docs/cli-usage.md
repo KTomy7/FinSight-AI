@@ -155,7 +155,7 @@ finsight forecast --ticker AAPL --model-id ridge --horizon 2 --json
 
 ## Error Handling
 
-All commands print errors to `stderr` and exit with code `1` on failure.
+All commands print errors to `stderr` on failure. Command-line usage and argument parsing errors exit with code `2`; validation errors, missing artifacts, and runtime failures exit with code `1`.
 
 ### Common Error Scenarios
 
@@ -219,6 +219,7 @@ finsight forecast --ticker AAPL --model-id ridge --horizon 30 --json > forecast_
 
 - `0` — Success
 - `1` — Validation error, missing artifact, or runtime failure
+- `2` — Command-line usage or argument parsing error (for example, missing required arguments)
 
 ---
 
