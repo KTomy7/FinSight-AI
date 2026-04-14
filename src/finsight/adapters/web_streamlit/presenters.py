@@ -39,7 +39,7 @@ class ForecastPresenter:
             frame = pd.DataFrame(result.predictions)
             return frame
         except (TypeError, ValueError) as exc:
-            raise ValueError("Failed to convert predictions to DataFrame.") from exc
+            raise ValueError(f"Failed to convert predictions to DataFrame: {exc}") from exc
 
     @staticmethod
     def format_price_chart_data(
@@ -57,15 +57,15 @@ class ForecastPresenter:
         Returns:
             DataFrame indexed by date with pred_close column, or None if chart cannot be rendered.
         """
-        predictions_df = ForecastPresenter.format_predictions_table(result)
-        if predictions_df.empty:
-            return None
-
-        required_cols = {"date", "pred_close"}
-        if not required_cols.issubset(predictions_df.columns):
-            return None
-
         try:
+            predictions_df = ForecastPresenter.format_predictions_table(result)
+            if predictions_df.empty:
+                return None
+
+            required_cols = {"date", "pred_close"}
+            if not required_cols.issubset(predictions_df.columns):
+                return None
+
             chart_df = predictions_df[["date", "pred_close"]].copy()
             # Forecast dates are emitted as ISO calendar dates (YYYY-MM-DD).
             chart_df["date"] = pd.to_datetime(chart_df["date"], format="%Y-%m-%d", errors="coerce")

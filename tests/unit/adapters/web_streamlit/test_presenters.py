@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter
 from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
