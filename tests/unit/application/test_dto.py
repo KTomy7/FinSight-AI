@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from finsight.application.dto import (
     BacktestResult,
+    CompareModelsRequest,
+    CompareModelsResult,
     DatasetSpec,
     FeatureSpec,
     FetchMarketDataRequest,
+    ForecastRequest,
     ForecastResult,
+    ModelComparisonRow,
     TrainModelRequest,
     TrainModelResult,
 )
@@ -81,6 +85,31 @@ def test_train_model_result_roundtrip_with_specs() -> None:
     assert restored == result
 
 
+def test_compare_models_request_and_result_roundtrip() -> None:
+    request = CompareModelsRequest(
+        model_ids=["naive_zero", "ridge"],
+        artifacts_dir="artifacts/runs",
+        rank_by=["mae", "direction_accuracy"],
+        metric_directions={"direction_accuracy": "desc"},
+    )
+    result = CompareModelsResult(
+        rows=[
+            ModelComparisonRow(
+                rank=1,
+                model_id="ridge",
+                run_id="2026-04-12T120000Z__ridge",
+                metrics={"mae": 0.09, "direction_accuracy": 0.87},
+                sort_key=(0.09, -0.87, "ridge", "2026-04-12T120000Z__ridge"),
+            )
+        ],
+        rank_by=["mae", "direction_accuracy"],
+        metric_directions={"mae": "asc", "direction_accuracy": "desc"},
+    )
+
+    assert CompareModelsRequest.from_dict(request.to_dict()) == request
+    assert CompareModelsResult.from_dict(result.to_dict()) == result
+
+
 def test_forecast_and_backtest_results_are_serializable() -> None:
     forecast = ForecastResult(
         model_id="naive_mean",
@@ -118,12 +147,45 @@ def test_from_dict_handles_non_sequence_fields_without_char_splitting() -> None:
     assert features.feature_columns == ()
 
 
+def test_forecast_request_roundtrip() -> None:
+    request = ForecastRequest(
+        ticker="AAPL",
+        model_id="ridge",
+        horizon_days=14,
+        artifacts_dir="artifacts/runs",
+    )
+
+    payload = request.to_dict()
+    restored = ForecastRequest.from_dict(payload)
+
+    assert restored == request
+
+
+def test_forecast_request_from_dict_normalizes_strings_and_defaults_artifacts_dir() -> None:
+    request = ForecastRequest.from_dict(
+        {
+            "ticker": "  AAPL  ",
+            "model_id": "  ridge  ",
+            "horizon_days": "7",
+            "artifacts_dir": "   ",
+        }
+    )
+
+    assert request.ticker == "AAPL"
+    assert request.model_id == "ridge"
+    assert request.horizon_days == 7
+    assert request.artifacts_dir == "artifacts/runs"
+
+
 def test_from_dict_parses_safe_defaults_for_invalid_scalar_types() -> None:
     train_request = TrainModelRequest.from_dict({"years": "bad", "model_types": "naive_zero"})
+    forecast_request = ForecastRequest.from_dict({"horizon_days": "bad", "artifacts_dir": None})
     forecast = ForecastResult.from_dict({"horizon_days": "bad", "generated_at": 123})
 
     assert train_request.years == 2
     assert train_request.model_types == ["naive_zero", "naive_mean"]
+    assert forecast_request.horizon_days == 0
+    assert forecast_request.artifacts_dir == "artifacts/runs"
     assert forecast.horizon_days == 0
     assert forecast.generated_at == "123"
 
@@ -136,5 +198,4 @@ def test_forecast_result_from_dict_normalizes_identifiers() -> None:
     forecast_nonstring = ForecastResult.from_dict({"model_id": 123, "ticker": None})
     assert forecast_nonstring.model_id == ""
     assert forecast_nonstring.ticker == ""
-
 

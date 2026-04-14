@@ -42,6 +42,30 @@ class LocalFileModelRegistry(ModelRegistryPort):
             except FileExistsError:
                 suffix += 1
 
+    def latest_run_id(self, *, artifact_root: str, model_id: str) -> str:
+        model_id_value = str(model_id).strip()
+        if not model_id_value:
+            raise ValueError("model_id must be a non-empty string.")
+
+        root = Path(artifact_root)
+        if not root.exists() or not root.is_dir():
+            raise FileNotFoundError(
+                f"No runs found for model_id '{model_id_value}' under artifact root: {root}"
+            )
+
+        suffix = f"__{model_id_value}"
+        candidates = [
+            entry.name
+            for entry in root.iterdir()
+            if entry.is_dir() and entry.name.endswith(suffix)
+        ]
+        if not candidates:
+            raise FileNotFoundError(
+                f"No runs found for model_id '{model_id_value}' under artifact root: {root}"
+            )
+
+        return max(candidates)
+
     def save_model(self, *, run_dir: str, model: object) -> None:
         joblib.dump(model, Path(run_dir) / MODEL_FILENAME)
 

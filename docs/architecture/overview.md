@@ -52,6 +52,7 @@ Orchestrates domain objects and ports to fulfil business use cases.
 |---|---|
 | `use_cases/train_model.py` | `TrainModel` — builds features, evaluates models, writes run manifests |
 | `use_cases/fetch_market_data.py` | `FetchMarketData` — fetches and summarises OHLCV data |
+| `use_cases/compare_models.py` | `CompareModels` — ranks model runs into a deterministic leaderboard |
 | `dto.py` | All request/response data transfer objects (see [DTO conventions](../conventions/naming-and-contracts.md)) |
 | `contracts/run_manifest.py` | `build_run_manifest`, `validate_run_manifest` — structured training-run records |
 
@@ -102,7 +103,12 @@ Thin presentation layer. Converts use case results into Streamlit widgets.
 
 ### `cli/`
 
-CLI entry point. Parses arguments and delegates to `TrainModel` via the container.
+CLI entry point. Parses arguments and delegates to use cases (`TrainModel`, `CompareModels`, `Forecast`) via the container.
+
+Supports three subcommands:
+- `train` — Execute model training and evaluation.
+- `compare` — Compare trained model runs and print a leaderboard.
+- `forecast` — Generate price forecasts from the latest run of a trained model.
 
 ---
 
@@ -140,6 +146,17 @@ CLI / Streamlit view
        └─ returns TrainModelResult
 ```
 
+### Comparing trained models
+
+```
+CLI / Streamlit view
+  └─ CompareModels.execute(CompareModelsRequest)
+       ├─ ModelRegistryPort.latest_run_id              (locates latest run for each model)
+       ├─ ModelRegistryPort.load_run_artifacts          (loads metrics and manifest data)
+       ├─ deterministic metric ranking + tie-breaks
+       └─ returns CompareModelsResult                   (table-ready leaderboard rows)
+```
+
 ### Fetching market data
 
 ```
@@ -147,6 +164,21 @@ Streamlit view
   └─ FetchMarketData.execute(FetchMarketDataRequest)
        └─ MarketDataPort.fetch_ohlcv + get_summary      (yfinance)
             └─ returns FetchMarketDataResult
+```
+
+### Forecasting future prices
+
+```
+CLI / Streamlit view
+  └─ Forecast.execute(ForecastRequest)
+       ├─ ModelRegistryPort.latest_run_id              (locates latest run for model_id)
+       ├─ ModelRegistryPort.load_run_artifacts          (loads model, manifest, metrics)
+       ├─ FetchMarketData → MarketDataPort.fetch_ohlcv  (current market history)
+       ├─ FeatureStorePort.build_inference_feature_dataset
+       ├─ iteratively predict forward by horizon_days
+       │  ├─ model.predict(features)
+       │  └─ synthetic history row appended
+       └─ returns ForecastResult                        (date, pred_ret_1d, pred_close per row)
 ```
 
 ---
@@ -171,6 +203,17 @@ Streamlit view
 2. Implement the use case class in `application/use_cases/<name>.py`, depending only on
    domain ports.
 3. Add the use case to `AppContainer` in `bootstrap/container.py`.
+
+### Adding CLI commands
+
+1. Add a subparser in `_build_parser()` in `cli/main.py` with required/optional arguments.
+2. Implement a handler function `_run_<command>()` that:
+   - Builds the request DTO from parsed args.
+   - Calls the use case via `build_container()`.
+   - Renders output (text or JSON).
+   - Catches expected exceptions and maps them to clear stderr messages with non-zero exit codes.
+3. Add a dispatch route in `main()`.
+4. Add unit tests for parsing, delegation, output, and error paths.
 
 ---
 

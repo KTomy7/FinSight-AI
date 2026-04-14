@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from finsight.domain.entities import OHLCVSeries, StockSummary
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
 
 MetricValue = float | int | str
 SerializableScalar = str | int | float | bool | None
@@ -307,6 +308,138 @@ class TrainModelResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelComparisonRow:
+    rank: int
+    model_id: str
+    run_id: str
+    metrics: dict[str, MetricValue]
+    sort_key: tuple[Any, ...] = field(default_factory=tuple)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "rank": self.rank,
+            "model_id": self.model_id,
+            "run_id": self.run_id,
+            "metrics": dict(self.metrics),
+            "sort_key": list(self.sort_key),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> ModelComparisonRow:
+        metrics_raw = payload.get("metrics", {})
+        metrics: dict[str, MetricValue] = {}
+        if isinstance(metrics_raw, Mapping):
+            metrics = {str(key): value for key, value in metrics_raw.items()}
+
+        sort_key_raw = payload.get("sort_key", ())
+        sort_key: tuple[Any, ...]
+        if isinstance(sort_key_raw, (list, tuple)):
+            sort_key = tuple(sort_key_raw)
+        else:
+            sort_key = ()
+
+        return cls(
+            rank=_safe_int(payload.get("rank", 0), default=0),
+            model_id=_safe_str(payload.get("model_id", "")).strip(),
+            run_id=_safe_str(payload.get("run_id", "")).strip(),
+            metrics=metrics,
+            sort_key=sort_key,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CompareModelsRequest:
+    model_ids: list[str]
+    artifacts_dir: str = "artifacts/runs"
+    rank_by: list[str] = field(default_factory=lambda: [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY])
+    metric_directions: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "model_ids": list(self.model_ids),
+            "artifacts_dir": self.artifacts_dir,
+            "rank_by": list(self.rank_by),
+            "metric_directions": dict(self.metric_directions),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> CompareModelsRequest:
+        raw_model_ids = payload.get("model_ids", [])
+        raw_rank_by = payload.get("rank_by")
+        raw_metric_directions = payload.get("metric_directions", {})
+
+        model_ids = _string_list(raw_model_ids, default=[])
+        if isinstance(raw_rank_by, (list, tuple)):
+            rank_by = [str(item) for item in raw_rank_by]
+        else:
+            rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY]
+
+        metric_directions: dict[str, str] = {}
+        if isinstance(raw_metric_directions, Mapping):
+            metric_directions = {
+                str(key): str(value).strip().lower()
+                for key, value in raw_metric_directions.items()
+                if str(value).strip()
+            }
+
+        raw_artifacts_dir = payload.get("artifacts_dir")
+        if raw_artifacts_dir is None:
+            artifacts_dir = "artifacts/runs"
+        elif isinstance(raw_artifacts_dir, str):
+            artifacts_dir_candidate = raw_artifacts_dir.strip()
+            artifacts_dir = artifacts_dir_candidate or "artifacts/runs"
+        else:
+            artifacts_dir = str(raw_artifacts_dir)
+
+        return cls(
+            model_ids=model_ids,
+            artifacts_dir=artifacts_dir,
+            rank_by=rank_by,
+            metric_directions=metric_directions,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CompareModelsResult:
+    rows: list[ModelComparisonRow]
+    rank_by: list[str]
+    metric_directions: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "rows": [row.to_dict() for row in self.rows],
+            "rank_by": list(self.rank_by),
+            "metric_directions": dict(self.metric_directions),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> CompareModelsResult:
+        rows_raw = payload.get("rows", [])
+        rows: list[ModelComparisonRow] = []
+        if isinstance(rows_raw, list):
+            for row in rows_raw:
+                if isinstance(row, Mapping):
+                    rows.append(ModelComparisonRow.from_dict(row))
+
+        raw_rank_by = payload.get("rank_by", [])
+        if isinstance(raw_rank_by, (list, tuple)):
+            rank_by = [str(item) for item in raw_rank_by]
+        else:
+            rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY]
+
+        raw_metric_directions = payload.get("metric_directions", {})
+        metric_directions: dict[str, str] = {}
+        if isinstance(raw_metric_directions, Mapping):
+            metric_directions = {
+                str(key): str(value).strip().lower()
+                for key, value in raw_metric_directions.items()
+                if str(value).strip()
+            }
+
+        return cls(rows=rows, rank_by=rank_by, metric_directions=metric_directions)
+
+
+@dataclass(frozen=True, slots=True)
 class ModelRunArtifacts:
     run_id: str
     run_dir: str
@@ -395,14 +528,58 @@ class BacktestResult:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ForecastRequest:
+    ticker: str
+    model_id: str
+    horizon_days: int
+    artifacts_dir: str = "artifacts/runs"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticker": self.ticker,
+            "model_id": self.model_id,
+            "horizon_days": self.horizon_days,
+            "artifacts_dir": self.artifacts_dir,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> ForecastRequest:
+        raw_ticker = payload.get("ticker", "")
+        ticker = raw_ticker.strip() if isinstance(raw_ticker, str) else ""
+
+        raw_model_id = payload.get("model_id", "")
+        model_id = raw_model_id.strip() if isinstance(raw_model_id, str) else ""
+
+        raw_artifacts_dir = payload.get("artifacts_dir")
+        if raw_artifacts_dir is None:
+            artifacts_dir = "artifacts/runs"
+        elif isinstance(raw_artifacts_dir, str):
+            artifacts_dir_candidate = raw_artifacts_dir.strip()
+            artifacts_dir = artifacts_dir_candidate or "artifacts/runs"
+        else:
+            artifacts_dir = str(raw_artifacts_dir)
+
+        return cls(
+            ticker=ticker,
+            model_id=model_id,
+            horizon_days=_safe_int(payload.get("horizon_days", 0), default=0),
+            artifacts_dir=artifacts_dir,
+        )
+
+
 __all__ = [
+    "CompareModelsRequest",
+    "CompareModelsResult",
     "BacktestResult",
     "DatasetSpec",
     "FeatureSpec",
     "FetchMarketDataRequest",
     "FetchMarketDataResult",
+    "ForecastRequest",
     "ForecastResult",
     "MetricValue",
+    "ModelComparisonRow",
     "ModelRunArtifacts",
     "TrainModelRequest",
     "TrainModelResult",
