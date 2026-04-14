@@ -103,7 +103,12 @@ Thin presentation layer. Converts use case results into Streamlit widgets.
 
 ### `cli/`
 
-CLI entry point. Parses arguments and delegates to `TrainModel` and `CompareModels` via the container.
+CLI entry point. Parses arguments and delegates to use cases (`TrainModel`, `CompareModels`, `Forecast`) via the container.
+
+Supports three subcommands:
+- `train` — Execute model training and evaluation.
+- `compare` — Compare trained model runs and print a leaderboard.
+- `forecast` — Generate price forecasts from the latest run of a trained model.
 
 ---
 
@@ -161,6 +166,21 @@ Streamlit view
             └─ returns FetchMarketDataResult
 ```
 
+### Forecasting future prices
+
+```
+CLI / Streamlit view
+  └─ Forecast.execute(ForecastRequest)
+       ├─ ModelRegistryPort.latest_run_id              (locates latest run for model_id)
+       ├─ ModelRegistryPort.load_run_artifacts          (loads model, manifest, metrics)
+       ├─ FetchMarketData → MarketDataPort.fetch_ohlcv  (current market history)
+       ├─ FeatureStorePort.build_inference_feature_dataset
+       ├─ iteratively predict forward by horizon_days
+       │  ├─ model.predict(features)
+       │  └─ synthetic history row appended
+       └─ returns ForecastResult                        (date, pred_ret_1d, pred_close per row)
+```
+
 ---
 
 ## Extension Points
@@ -183,6 +203,17 @@ Streamlit view
 2. Implement the use case class in `application/use_cases/<name>.py`, depending only on
    domain ports.
 3. Add the use case to `AppContainer` in `bootstrap/container.py`.
+
+### Adding CLI commands
+
+1. Add a subparser in `_build_parser()` in `cli/main.py` with required/optional arguments.
+2. Implement a handler function `_run_<command>()` that:
+   - Builds the request DTO from parsed args.
+   - Calls the use case via `build_container()`.
+   - Renders output (text or JSON).
+   - Catches expected exceptions and maps them to clear stderr messages with non-zero exit codes.
+3. Add a dispatch route in `main()`.
+4. Add unit tests for parsing, delegation, output, and error paths.
 
 ---
 
