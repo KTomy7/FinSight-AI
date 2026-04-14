@@ -27,10 +27,10 @@ def render():
     st.title("Compare Models")
     st.markdown(
         "Build a deterministic leaderboard from the latest saved model runs. "
-        "Ranking follows the selected metric order, then model ID, then run ID.")
+        "Ranking follows a fixed metric priority among the metrics you select, then model ID, then run ID.")
     st.info(
         "Metric direction defaults: MAE/RMSE are ranked lower-is-better, while Direction Accuracy is ranked higher-is-better. "
-        "If you reorder metrics, the first metric has the highest priority."
+        "Use Ranking metrics to include or exclude metrics. Priority remains MAE -> RMSE -> Direction Accuracy."
     )
 
     model_defaults = _SETTINGS.model_defaults
