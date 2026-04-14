@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from finsight.application.dto import FetchMarketDataRequest, ForecastRequest, ForecastResult
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.application.use_cases.forecast import Forecast
+from finsight.adapters.web_streamlit.presenters import ForecastPresenter
 from finsight.adapters.web_streamlit.ticker_options import build_ticker_select_items
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
@@ -54,24 +55,19 @@ def _render_market_data(ticker: str) -> None:
 
 
 def _render_forecast(result: ForecastResult) -> None:
-    import pandas as pd
-
-    predictions = result.predictions
-    frame = pd.DataFrame(predictions)
-    if frame.empty:
+    """Render forecast results using presenter formatting."""
+    predictions_frame = ForecastPresenter.format_predictions_table(result)
+    if predictions_frame.empty:
         st.warning("No forecast rows were returned.")
         return
 
     st.subheader("Forecast Results")
-    st.dataframe(frame, use_container_width=True)
+    st.dataframe(predictions_frame, use_container_width=True)
 
-    if {"date", "pred_close"}.issubset(frame.columns):
-        chart_df = frame[["date", "pred_close"]].copy()
-        chart_df["date"] = pd.to_datetime(chart_df["date"], errors="coerce")
-        chart_df = chart_df.dropna(subset=["date"]).set_index("date")
-        if not chart_df.empty:
-            st.subheader("Predicted Close Price")
-            st.line_chart(chart_df["pred_close"])
+    chart_df = ForecastPresenter.format_price_chart_data(result)
+    if chart_df is not None:
+        st.subheader("Predicted Close Price")
+        st.line_chart(chart_df["pred_close"])
 
 
 def render():

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-
-import pandas as pd
 import streamlit as st
 
-from finsight.application.dto import CompareModelsRequest, CompareModelsResult
+from finsight.application.dto import CompareModelsRequest
+from finsight.adapters.web_streamlit.presenters import ComparisonPresenter
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
 from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
@@ -23,29 +21,6 @@ _METRIC_LABELS = {
 def _compare_models_uc():
     return build_container().compare_models
 
-
-def _build_comparison_frame(result: CompareModelsResult, *, label_lookup: Mapping[str, str]) -> pd.DataFrame:
-    rows: list[dict[str, object]] = []
-    for row in result.rows:
-        record: dict[str, object] = {
-            "rank": row.rank,
-            "model": label_lookup.get(row.model_id, row.model_id),
-            "model_id": row.model_id,
-            "run_id": row.run_id,
-        }
-        record.update(row.metrics)
-        rows.append(record)
-
-    frame = pd.DataFrame(rows)
-    if frame.empty:
-        return frame
-
-    base_columns = ["rank", "model", "model_id", "run_id"]
-    metric_columns = [column for column in result.rank_by if column in frame.columns]
-    remaining_columns = [
-        column for column in frame.columns if column not in base_columns and column not in metric_columns
-    ]
-    return frame[base_columns + metric_columns + sorted(remaining_columns)]
 
 
 def render():
@@ -112,7 +87,7 @@ def render():
         st.error(f"Leaderboard generation failed unexpectedly: {error}")
         return
 
-    frame = _build_comparison_frame(result, label_lookup=id_to_label)
+    frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup=id_to_label)
     if frame.empty:
         st.warning("No comparison rows were returned.")
         return
