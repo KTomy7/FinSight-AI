@@ -75,9 +75,9 @@ finsight compare --model-ids naive_zero ridge --rank-by mae direction_accuracy
 
 **Output:**
 ```
-rank                model        mae   rmse  direction_accuracy
-   1       Naive (Zero)  0.015234 0.0186              0.5432
-   2  Ridge Regression  0.012456 0.0157              0.6234
+rank                model        mae    rmse  direction_accuracy
+   1     Ridge Regression   0.012456  0.0157              0.6234
+   2         Naive (Zero)   0.015234  0.0186              0.5432
 ```
 
 ---

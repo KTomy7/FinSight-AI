@@ -87,16 +87,29 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _run_train(args: argparse.Namespace) -> int:
-    container = build_container()
-    response = container.train_model.execute(
-        TrainModelRequest(
-            years=args.years,
-            end=args.end,
-            cutoff_date=args.cutoff,
-            model_types=args.model_types,
-            artifacts_dir=args.artifacts_dir,
+    try:
+        container = build_container()
+        response = container.train_model.execute(
+            TrainModelRequest(
+                years=args.years,
+                end=args.end,
+                cutoff_date=args.cutoff,
+                model_types=args.model_types,
+                artifacts_dir=args.artifacts_dir,
+            )
         )
-    )
+    except ValueError as exc:
+        print(f"Train validation error: {exc}", file=sys.stderr)
+        return 1
+    except FileNotFoundError as exc:
+        print(f"Train artifact error: {exc}", file=sys.stderr)
+        return 1
+    except TypeError as exc:
+        print(f"Train runtime error: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:
+        print(f"Train unexpected error: {exc}", file=sys.stderr)
+        return 1
 
     for model_type, run_dir in response.run_dirs.items():
         model_metrics = response.metrics[model_type]
@@ -112,14 +125,27 @@ def _run_train(args: argparse.Namespace) -> int:
 
 
 def _run_compare(args: argparse.Namespace) -> int:
-    container = build_container()
-    response = container.compare_models.execute(
-        CompareModelsRequest(
-            model_ids=args.model_ids,
-            rank_by=args.rank_by,
-            artifacts_dir=args.artifacts_dir,
+    try:
+        container = build_container()
+        response = container.compare_models.execute(
+            CompareModelsRequest(
+                model_ids=args.model_ids,
+                rank_by=args.rank_by,
+                artifacts_dir=args.artifacts_dir,
+            )
         )
-    )
+    except ValueError as exc:
+        print(f"Compare validation error: {exc}", file=sys.stderr)
+        return 1
+    except FileNotFoundError as exc:
+        print(f"Compare artifact error: {exc}", file=sys.stderr)
+        return 1
+    except TypeError as exc:
+        print(f"Compare runtime error: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:
+        print(f"Compare unexpected error: {exc}", file=sys.stderr)
+        return 1
 
     id_to_label = get_settings().model_defaults.id_to_label()
     rows: list[dict[str, object]] = []

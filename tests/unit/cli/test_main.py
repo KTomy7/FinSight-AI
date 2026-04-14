@@ -272,6 +272,46 @@ def test_run_train_prints_metrics_using_canonical_metric_keys(monkeypatch, capsy
     assert "MAE=0.100000 RMSE=0.200000 DirectionAcc=0.7500" in captured
 
 
+def test_run_train_handles_validation_error(monkeypatch, capsys) -> None:
+    class _StubTrainModel:
+        @staticmethod
+        def execute(_request):
+            raise ValueError("cutoff_date must be provided")
+
+    class _StubContainer:
+        train_model = _StubTrainModel()
+
+    monkeypatch.setattr(cli_main, "build_container", lambda: _StubContainer())
+
+    args = _build_parser().parse_args(["train", "--cutoff", "2025-06-01"])
+    exit_code = cli_main._run_train(args)
+
+    captured_err = capsys.readouterr().err
+    assert exit_code == 1
+    assert "Train validation error" in captured_err
+    assert "cutoff_date must be provided" in captured_err
+
+
+def test_run_train_handles_unexpected_exception(monkeypatch, capsys) -> None:
+    class _StubTrainModel:
+        @staticmethod
+        def execute(_request):
+            raise RuntimeError("training pipeline exploded")
+
+    class _StubContainer:
+        train_model = _StubTrainModel()
+
+    monkeypatch.setattr(cli_main, "build_container", lambda: _StubContainer())
+
+    args = _build_parser().parse_args(["train", "--cutoff", "2025-06-01"])
+    exit_code = cli_main._run_train(args)
+
+    captured_err = capsys.readouterr().err
+    assert exit_code == 1
+    assert "Train unexpected error" in captured_err
+    assert "training pipeline exploded" in captured_err
+
+
 def test_run_compare_prints_leaderboard_table(monkeypatch, capsys) -> None:
     class _StubCompareModels:
         @staticmethod
@@ -315,5 +355,45 @@ def test_run_compare_prints_leaderboard_table(monkeypatch, capsys) -> None:
     assert exit_code == 0
     assert "Naive (Zero)" in captured
     assert "mae" in captured
+
+
+def test_run_compare_handles_file_not_found_error(monkeypatch, capsys) -> None:
+    class _StubCompareModels:
+        @staticmethod
+        def execute(_request):
+            raise FileNotFoundError("No runs found under artifacts/runs")
+
+    class _StubContainer:
+        compare_models = _StubCompareModels()
+
+    monkeypatch.setattr(cli_main, "build_container", lambda: _StubContainer())
+
+    args = _build_parser().parse_args(["compare", "--model-ids", "naive_zero"])
+    exit_code = cli_main._run_compare(args)
+
+    captured_err = capsys.readouterr().err
+    assert exit_code == 1
+    assert "Compare artifact error" in captured_err
+    assert "No runs found under artifacts/runs" in captured_err
+
+
+def test_run_compare_handles_validation_error(monkeypatch, capsys) -> None:
+    class _StubCompareModels:
+        @staticmethod
+        def execute(_request):
+            raise ValueError("rank_by contains unknown metric: foo")
+
+    class _StubContainer:
+        compare_models = _StubCompareModels()
+
+    monkeypatch.setattr(cli_main, "build_container", lambda: _StubContainer())
+
+    args = _build_parser().parse_args(["compare", "--model-ids", "naive_zero"])
+    exit_code = cli_main._run_compare(args)
+
+    captured_err = capsys.readouterr().err
+    assert exit_code == 1
+    assert "Compare validation error" in captured_err
+    assert "rank_by contains unknown metric: foo" in captured_err
 
 
