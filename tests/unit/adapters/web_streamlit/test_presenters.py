@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter
 from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
@@ -56,6 +57,22 @@ class TestForecastPresenter:
         frame = ForecastPresenter.format_predictions_table(result)
 
         assert set(frame.columns) == {"date", "pred_close", "pred_volume"}
+
+    def test_format_predictions_table_raises_value_error_when_dataframe_conversion_fails(self, monkeypatch) -> None:
+        result = ForecastResult(
+            model_id="ridge",
+            ticker="AAPL",
+            horizon_days=7,
+            predictions=[{"date": "2026-04-15", "pred_close": 150.0}],
+        )
+
+        def _boom(*_args, **_kwargs):
+            raise ValueError("bad frame")
+
+        monkeypatch.setattr("finsight.adapters.web_streamlit.presenters.pd.DataFrame", _boom)
+
+        with pytest.raises(ValueError, match="Failed to convert predictions to DataFrame"):
+            ForecastPresenter.format_predictions_table(result)
 
     def test_format_price_chart_data_returns_none_for_empty_predictions(self) -> None:
         result = ForecastResult(
@@ -153,6 +170,22 @@ class TestForecastPresenter:
         chart_df = ForecastPresenter.format_price_chart_data(result)
 
         assert chart_df is None
+
+    def test_format_price_chart_data_returns_none_when_predictions_table_raises(self, monkeypatch) -> None:
+        result = ForecastResult(
+            model_id="ridge",
+            ticker="AAPL",
+            horizon_days=7,
+            predictions=[{"date": "2026-04-15", "pred_close": 150.0}],
+        )
+
+        monkeypatch.setattr(
+            ForecastPresenter,
+            "format_predictions_table",
+            staticmethod(lambda _result: (_ for _ in ()).throw(ValueError("boom"))),
+        )
+
+        assert ForecastPresenter.format_price_chart_data(result) is None
 
 
 class TestComparisonPresenter:
@@ -357,4 +390,30 @@ class TestComparisonPresenter:
         assert frame.iloc[1]["rank"] == 2
         assert frame.iloc[0]["model_id"] == "ridge"
         assert frame.iloc[1]["model_id"] == "linear"
+
+    def test_format_leaderboard_frame_handles_empty_dataframe_after_construction(self, monkeypatch) -> None:
+        rows = [
+            ModelComparisonRow(
+                rank=1,
+                model_id="ridge",
+                run_id="2026-04-10T120000Z__ridge",
+                metrics={"mae": 0.09},
+                sort_key=(0.09, "ridge", "2026-04-10T120000Z__ridge"),
+            )
+        ]
+        result = CompareModelsResult(
+            rows=rows,
+            rank_by=["mae"],
+            metric_directions={"mae": "asc"},
+        )
+
+        real_dataframe = pd.DataFrame
+        monkeypatch.setattr(
+            "finsight.adapters.web_streamlit.presenters.pd.DataFrame",
+            lambda *_args, **_kwargs: real_dataframe(),
+        )
+
+        frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup={})
+
+        assert frame.empty
 
