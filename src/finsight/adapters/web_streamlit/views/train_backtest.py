@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, cast
-from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
@@ -101,7 +101,7 @@ def render() -> None:
         st.success("Training complete")
 
     # If no cached results yet, show info and return
-    if not hasattr(st.session_state, "train_result"):
+    if "train_result" not in st.session_state:
         st.info("Configure training options and submit to run backtest.")
         return
 
@@ -119,7 +119,7 @@ def render() -> None:
         st.dataframe(metrics_frame, use_container_width=True)
 
     # Load all model predictions and manifests upfront (cache in session_state)
-    if not hasattr(st.session_state, "model_data"):
+    if "model_data" not in st.session_state:
         model_data: dict[str, dict[str, Any]] = {}
         for model_id, run_dir in result.run_dirs.items():
             pred_df = TrainPresenter.load_predictions_csv(run_dir)
@@ -176,7 +176,10 @@ def render() -> None:
             pred_df = data["predictions"]
             manifest = data["manifest"]
 
-            ticker_mask = pred_df.get("ticker") == ticker
+            if "ticker" not in pred_df.columns:
+                continue
+
+            ticker_mask = pred_df["ticker"] == ticker
             if not ticker_mask.any():
                 continue
 
@@ -246,10 +249,10 @@ def render() -> None:
                 row = bt_df[bt_df["next_date"] == date_val]
                 if not row.empty:
                     ac = row.iloc[0].get("actual_next_close")
-                    if ac is not None:
-                        actual_close = ac
+                    if ac is not None and pd.notna(ac):
+                        actual_close = float(ac)
                         break
-            chart_data_dict["actual_next_close"].append(float(actual_close) if actual_close is not None else float("nan"))
+            chart_data_dict["actual_next_close"].append(actual_close if actual_close is not None else float("nan"))
 
             # Get predicted close for each model
             for model_id, bt_df in combined_backtest_data.items():

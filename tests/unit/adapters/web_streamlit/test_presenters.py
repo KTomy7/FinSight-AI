@@ -4,7 +4,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter
+from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter, TrainPresenter
 from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
 
 
@@ -416,4 +416,33 @@ class TestComparisonPresenter:
         frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup={})
 
         assert frame.empty
+
+
+class TestTrainPresenter:
+    def test_assemble_backtest_for_ticker_reconstructs_actual_prices_from_y_true(self) -> None:
+        predictions_df = pd.DataFrame(
+            [
+                {"date": "2026-04-10", "ticker": "AAPL", "y_pred": 0.02, "y_true": 0.05},
+                {"date": "2026-04-13", "ticker": "AAPL", "y_pred": -0.01, "y_true": -0.02},
+            ]
+        )
+        market_history_df = pd.DataFrame(
+            [
+                {"Date": "2026-04-10", "Close": 100.0},
+                {"Date": "2026-04-13", "Close": 105.0},
+            ]
+        )
+
+        frame = TrainPresenter.assemble_backtest_for_ticker(predictions_df, market_history_df, "AAPL")
+
+        assert len(frame) == 2
+        assert list(frame["input_date"]) == ["2026-04-10", "2026-04-13"]
+        assert list(frame["next_date"]) == ["2026-04-11", "2026-04-14"]
+        assert frame.iloc[0]["base_close"] == 100.0
+        assert frame.iloc[0]["pred_next_close"] == 102.0
+        assert frame.iloc[0]["actual_next_close"] == 105.0
+        assert frame.iloc[1]["base_close"] == 105.0
+        assert frame.iloc[1]["pred_next_close"] == pytest.approx(103.95)
+        assert frame.iloc[1]["actual_next_close"] == pytest.approx(102.9)
+
 

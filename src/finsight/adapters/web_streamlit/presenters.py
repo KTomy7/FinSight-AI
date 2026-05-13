@@ -9,10 +9,18 @@ concerns and improve testability.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import timedelta
+from typing import Any
 
 import pandas as pd
 
 import finsight.application.dto as application_dto
+
+
+def _as_float(value: Any) -> float | None:
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
 
 
 class ForecastPresenter:
@@ -210,7 +218,9 @@ class TrainPresenter:
         rows: list[dict[str, object]] = []
         for _, row in working.iterrows():
             input_dt = row["date"].date()
-            y_pred = float(row.get("y_pred", 0.0))
+            y_pred = _as_float(row.get("y_pred"))
+            if y_pred is None:
+                continue
             y_true = row.get("y_true")
 
             # base close try exact date, else last available before date
@@ -228,25 +238,24 @@ class TrainPresenter:
                 # can't reconstruct
                 continue
 
-            next_dt = input_dt + pd.Timedelta(days=1)
-            next_date = next_dt if isinstance(next_dt, pd.Timestamp) else pd.to_datetime(next_dt)
             pred_next_close = base_close * (1.0 + y_pred)
 
             # actual next close: can be reconstructed from y_true and base_close
             actual_next_close = None
-            if y_true is not None:
-                actual_next_close = base_close * (1.0 + float(y_true))
+            actual_y_true = _as_float(y_true)
+            if actual_y_true is not None:
+                actual_next_close = base_close * (1.0 + actual_y_true)
 
             rows.append(
                 {
                     "input_date": input_dt.isoformat(),
-                    "next_date": (input_dt + pd.Timedelta(days=1)).isoformat(),
+                    "next_date": (input_dt + timedelta(days=1)).isoformat(),
                     "ticker": ticker,
                     "base_close": float(base_close),
                     "pred_next_close": float(pred_next_close),
                     "actual_next_close": float(actual_next_close) if actual_next_close is not None else None,
-                    "y_pred": float(y_pred),
-                    "y_true": float(y_true) if y_true is not None else None,
+                    "y_pred": y_pred,
+                    "y_true": actual_y_true,
                 }
             )
 
