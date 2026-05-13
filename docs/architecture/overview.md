@@ -5,7 +5,9 @@
 FinSight-AI is a stock-market forecasting tool. It fetches historical OHLCV data, engineers
 features, trains baseline ML models, and surfaces results through a Streamlit web UI and a
 CLI. The architecture keeps ML logic decoupled from the UI and makes it straightforward to
-add new data sources, feature pipelines, or model implementations.
+add new data sources, feature pipelines, or model implementations. The Streamlit app now
+includes a `Train & Backtest` workflow for model evaluation and a dedicated `Price Prediction`
+page for forward forecasts.
 
 ---
 
@@ -89,7 +91,8 @@ Thin presentation layer. Converts use case results into Streamlit widgets.
 |---|---|
 | `app.py` | Page routing, Streamlit app entry point |
 | `views/home.py` | Home / dashboard view |
-| `views/predict.py` | Forecast / prediction view |
+| `views/predict.py` | Price prediction view |
+| `views/train_backtest.py` | Training, backtesting, and per-ticker chart view |
 | `views/compare.py` | Side-by-side model comparison view |
 | `presenters.py` | Converts domain/DTO objects to display-ready dicts |
 | `ticker_options.py` | Helper to build ticker dropdown options from config |
@@ -146,6 +149,17 @@ CLI / Streamlit view
        └─ returns TrainModelResult
 ```
 
+### Training and backtesting in the Streamlit app
+
+```
+Streamlit `Train & Backtest` page
+  └─ TrainModel.execute(TrainModelRequest)
+       ├─ fetches the selected ticker basket and builds the feature dataset
+       ├─ evaluates the selected model set
+       ├─ persists metrics, manifests, and predictions to the run directory
+       └─ presenters assemble chart-ready per-ticker backtest tables and combined model charts
+```
+
 ### Comparing trained models
 
 ```
@@ -169,7 +183,7 @@ Streamlit view
 ### Forecasting future prices
 
 ```
-CLI / Streamlit view
+CLI / Streamlit `Price Prediction` page
   └─ Forecast.execute(ForecastRequest)
        ├─ ModelRegistryPort.latest_run_id              (locates latest run for model_id)
        ├─ ModelRegistryPort.load_run_artifacts          (loads model, manifest, metrics)
@@ -188,7 +202,7 @@ CLI / Streamlit view
 ### Adding a new model
 
 1. Implement `ModelPort` in `infrastructure/ml/<framework>/<name>.py`.
-2. Add an entry to `model_defaults.catalog` in `config/config.yaml`.
+2. Add an entry to `model_defaults.catalog` in `config/config.yaml` so the label appears in the Streamlit selectors and CLI defaults.
 3. Register the implementation in `bootstrap/container.py`.
 4. No changes to the domain or application layers are required.
 

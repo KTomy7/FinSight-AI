@@ -34,8 +34,8 @@ from finsight.application.use_cases.train_model import TrainModelRequest
 | `FeatureSpec` | nested result | `TrainModel` |
 | `TrainModelRequest` | request | `TrainModel` |
 | `TrainModelResult` | result | `TrainModel` |
-| `ForecastResult` | result | future forecast use case |
-| `BacktestResult` | result | future backtest use case |
+| `ForecastResult` | result | Streamlit price prediction |
+| `BacktestResult` | result | Streamlit backtest presentation |
 
 ### DTO rules
 
@@ -43,6 +43,7 @@ from finsight.application.use_cases.train_model import TrainModelRequest
 - DTOs that need serialization for adapters/persistence expose `to_dict() -> dict[str, Any]` and a `from_dict(cls, payload)` classmethod.
 - Field types use built-in Python types or domain entities — no infrastructure types.
 - Prefer `str | None` for optional dates (ISO `"YYYY-MM-DD"` format).
+- Use `BacktestResult` for chart-ready backtest summaries and `ForecastResult` for forward prediction output.
 
 ### Adding a new DTO
 
