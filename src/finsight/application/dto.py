@@ -233,7 +233,7 @@ class TrainModelRequest:
         else:
             artifacts_dir = str(raw_artifacts_dir)
 
-        # Normalise optional date/interval fields: treat whitespace-only as missing.
+        # Normalize optional date/interval fields: treat whitespace-only as missing.
         raw_end = payload.get("end")
         if raw_end is None:
             end = None

@@ -6,8 +6,8 @@ def render_sidebar():
     with st.sidebar:
         selected = option_menu(
             None,
-            ["Home", "Predict", "Compare Models"],
-            icons=["house", "graph-up", "bar-chart"],
+            ["Home", "Predict", "Compare Models", "Train & Backtest"],
+            icons=["house", "graph-up", "bar-chart", "activity"],
             menu_icon="cast",
             default_index=0,
         )
