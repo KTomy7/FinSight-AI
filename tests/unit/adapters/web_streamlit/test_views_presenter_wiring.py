@@ -6,6 +6,7 @@ import pandas as pd
 
 import finsight.adapters.web_streamlit.views.compare as compare_view
 import finsight.adapters.web_streamlit.views.predict as predict_view
+import finsight.adapters.web_streamlit.views.train_backtest as train_backtest_view
 from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
 
 
@@ -23,6 +24,17 @@ class _ButtonCol(_Ctx):
 
     def button(self, label: str, **_kwargs) -> bool:
         return self._returns.get(label, False)
+
+
+class _SessionState(dict):
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
+    def __setattr__(self, name, value):
+        self[name] = value
 
 
 def test_compare_render_shows_info_when_form_not_submitted(monkeypatch) -> None:
@@ -310,5 +322,73 @@ def test_predict_render_executes_forecast_use_case_and_renders_result(monkeypatc
 
     assert any(kind == "render_forecast" for kind, _ in events)
     assert not any(kind == "error" for kind, _ in events)
+
+
+def test_train_backtest_render_shows_info_when_no_cached_results(monkeypatch) -> None:
+    events: list[tuple[str, str]] = []
+
+    session_state = _SessionState()
+    monkeypatch.setattr(train_backtest_view.st, "session_state", session_state, raising=False)
+    monkeypatch.setattr(
+        train_backtest_view,
+        "_SETTINGS",
+        SimpleNamespace(
+            model_defaults=SimpleNamespace(
+                training_model_ids=lambda: ("ridge",),
+                id_to_label=lambda: {"ridge": "Ridge Regression"},
+            ),
+            ticker_catalog=SimpleNamespace(
+                entries=(SimpleNamespace(symbol="AAPL", company_name="Apple Inc."),),
+                symbols=lambda: ("AAPL",),
+            ),
+        ),
+    )
+    monkeypatch.setattr(train_backtest_view, "build_container", lambda: SimpleNamespace())
+    monkeypatch.setattr(train_backtest_view, "build_ticker_select_items", lambda _entries: [("AAPL", "Apple Inc.")])
+    monkeypatch.setattr(train_backtest_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "markdown", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "info", lambda msg: events.append(("info", msg)))
+    monkeypatch.setattr(train_backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(train_backtest_view.st, "multiselect", lambda _label, options, **_kwargs: list(options))
+    monkeypatch.setattr(train_backtest_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(train_backtest_view.st, "form_submit_button", lambda _label: False)
+
+    train_backtest_view.render()
+
+    assert ("info", "Configure training options and submit to run backtest.") in events
+
+
+def test_train_backtest_render_warns_when_no_models_selected(monkeypatch) -> None:
+    events: list[tuple[str, str]] = []
+
+    session_state = _SessionState()
+    monkeypatch.setattr(train_backtest_view.st, "session_state", session_state, raising=False)
+    monkeypatch.setattr(
+        train_backtest_view,
+        "_SETTINGS",
+        SimpleNamespace(
+            model_defaults=SimpleNamespace(
+                training_model_ids=lambda: ("ridge",),
+                id_to_label=lambda: {"ridge": "Ridge Regression"},
+            ),
+            ticker_catalog=SimpleNamespace(
+                entries=(SimpleNamespace(symbol="AAPL", company_name="Apple Inc."),),
+                symbols=lambda: ("AAPL",),
+            ),
+        ),
+    )
+    monkeypatch.setattr(train_backtest_view, "build_container", lambda: SimpleNamespace())
+    monkeypatch.setattr(train_backtest_view, "build_ticker_select_items", lambda _entries: [("AAPL", "Apple Inc.")])
+    monkeypatch.setattr(train_backtest_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "markdown", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "info", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(train_backtest_view.st, "multiselect", lambda label, options, **_kwargs: [] if label == "Models to train" else list(options))
+    monkeypatch.setattr(train_backtest_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(train_backtest_view.st, "form_submit_button", lambda _label: True)
+
+    train_backtest_view.render()
+
+    assert ("warning", "Select at least one model to train.") in events
 
 

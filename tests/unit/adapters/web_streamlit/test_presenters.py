@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter, TrainPresenter
-from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
+from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow, TrainModelResult
 
 
 class TestForecastPresenter:
@@ -419,6 +419,33 @@ class TestComparisonPresenter:
 
 
 class TestTrainPresenter:
+    def test_format_metrics_frame_applies_labels_and_orders_columns(self) -> None:
+        result = TrainModelResult(
+            run_dirs={"ridge": "artifacts/runs/run_1"},
+            metrics={"ridge": {"mae": 0.12, "rmse": 0.34}},
+        )
+
+        frame = TrainPresenter.format_metrics_frame(result, label_lookup={"ridge": "Ridge Regression"})
+
+        assert list(frame.columns) == ["model", "model_id", "mae", "rmse"]
+        assert frame.iloc[0]["model"] == "Ridge Regression"
+        assert frame.iloc[0]["model_id"] == "ridge"
+        assert frame.iloc[0]["mae"] == 0.12
+        assert frame.iloc[0]["rmse"] == 0.34
+
+    def test_format_metrics_frame_returns_empty_dataframe_for_empty_metrics(self) -> None:
+        result = TrainModelResult(run_dirs={}, metrics={})
+
+        frame = TrainPresenter.format_metrics_frame(result, label_lookup={})
+
+        assert isinstance(frame, pd.DataFrame)
+        assert frame.empty
+
+    def test_load_predictions_csv_returns_none_when_file_is_missing(self, tmp_path) -> None:
+        run_dir = tmp_path / "missing-run"
+
+        assert TrainPresenter.load_predictions_csv(str(run_dir)) is None
+
     def test_assemble_backtest_for_ticker_reconstructs_actual_prices_from_y_true(self) -> None:
         predictions_df = pd.DataFrame(
             [
