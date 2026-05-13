@@ -255,16 +255,8 @@ def test_predict_render_warns_when_no_prediction_models(monkeypatch) -> None:
     monkeypatch.setattr(predict_view.st, "warning", lambda msg: events.append(("warning", msg)))
     monkeypatch.setattr(predict_view.st, "selectbox", lambda _label, options, **_kwargs: options[0])
     monkeypatch.setattr(predict_view.st, "slider", lambda _label, **_kwargs: 7)
-
-    first_cols = (_ButtonCol(), _ButtonCol())
-    second_cols = (_ButtonCol({"Fetch Historical Data": False}), _ButtonCol({"Run Prediction": False}))
-    calls = {"n": 0}
-
-    def _columns(_n: int):
-        calls["n"] += 1
-        return first_cols if calls["n"] == 1 else second_cols
-
-    monkeypatch.setattr(predict_view.st, "columns", _columns)
+    monkeypatch.setattr(predict_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(predict_view.st, "form_submit_button", lambda _label, **_kwargs: False)
 
     predict_view.render()
 
@@ -299,16 +291,8 @@ def test_predict_render_executes_forecast_use_case_and_renders_result(monkeypatc
     monkeypatch.setattr(predict_view.st, "error", lambda msg: events.append(("error", msg)))
     monkeypatch.setattr(predict_view.st, "selectbox", lambda _label, options, **_kwargs: options[0])
     monkeypatch.setattr(predict_view.st, "slider", lambda _label, **_kwargs: 5)
-
-    first_cols = (_ButtonCol(), _ButtonCol())
-    second_cols = (_ButtonCol({"Fetch Historical Data": False}), _ButtonCol({"Run Prediction": True}))
-    calls = {"n": 0}
-
-    def _columns(_n: int):
-        calls["n"] += 1
-        return first_cols if calls["n"] == 1 else second_cols
-
-    monkeypatch.setattr(predict_view.st, "columns", _columns)
+    monkeypatch.setattr(predict_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(predict_view.st, "form_submit_button", lambda _label, **_kwargs: True)
 
     forecast_result = ForecastResult(model_id="ridge", ticker="AAPL", horizon_days=5, predictions=[])
     monkeypatch.setattr(
