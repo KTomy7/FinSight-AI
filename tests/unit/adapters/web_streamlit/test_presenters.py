@@ -446,6 +446,15 @@ class TestTrainPresenter:
 
         assert TrainPresenter.load_predictions_csv(str(run_dir)) is None
 
+    def test_load_predictions_csv_returns_none_when_read_fails(self, tmp_path, monkeypatch) -> None:
+        run_dir = tmp_path / "run_with_bad_csv"
+        run_dir.mkdir()
+        (run_dir / "predictions.csv").write_text("date,ticker,y_pred\n2026-04-10,AAPL,0.12\n", encoding="utf-8")
+
+        monkeypatch.setattr("finsight.adapters.web_streamlit.presenters.pd.read_csv", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("bad csv")))
+
+        assert TrainPresenter.load_predictions_csv(str(run_dir)) is None
+
     def test_assemble_backtest_for_ticker_reconstructs_actual_prices_from_y_true(self) -> None:
         predictions_df = pd.DataFrame(
             [
@@ -490,5 +499,6 @@ class TestTrainPresenter:
         assert frame.iloc[0]["input_date"] == "2026-04-13"
         assert frame.iloc[0]["base_close"] == 100.0
         assert frame.iloc[0]["pred_next_close"] == pytest.approx(102.0)
+        assert frame.iloc[0]["actual_next_close"] == pytest.approx(101.0)
 
 

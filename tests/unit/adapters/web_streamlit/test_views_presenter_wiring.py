@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 import finsight.adapters.web_streamlit.views.compare as compare_view
 import finsight.adapters.web_streamlit.views.predict as predict_view
@@ -392,5 +393,29 @@ def test_train_backtest_render_warns_when_no_models_selected(monkeypatch) -> Non
     train_backtest_view.render()
 
     assert ("warning", "Select at least one model to train.") in events
+
+
+def test_train_backtest_render_stops_when_no_predictions_are_available(monkeypatch) -> None:
+    events: list[tuple[str, str]] = []
+
+    session_state = _SessionState(
+        train_result=SimpleNamespace(run_dirs={"ridge": "artifacts/runs/run_1"}, metrics={"ridge": {"mae": 0.1}}),
+        selected_tickers=["AAPL"],
+        label_lookup={"ridge": "Ridge Regression"},
+    )
+    monkeypatch.setattr(train_backtest_view.st, "session_state", session_state, raising=False)
+    monkeypatch.setattr(train_backtest_view.TrainPresenter, "load_predictions_csv", staticmethod(lambda _run_dir: None))
+    monkeypatch.setattr(train_backtest_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "markdown", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "info", lambda msg: events.append(("info", msg)))
+    monkeypatch.setattr(train_backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(train_backtest_view.st, "subheader", lambda _msg: None)
+    monkeypatch.setattr(train_backtest_view.st, "dataframe", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(train_backtest_view.st, "stop", lambda: (_ for _ in ()).throw(SystemExit))
+
+    with pytest.raises(SystemExit):
+        train_backtest_view.render()
+
+    assert ("warning", "No predictions data available for any model.") in events
 
 
