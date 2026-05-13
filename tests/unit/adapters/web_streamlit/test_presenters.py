@@ -472,4 +472,23 @@ class TestTrainPresenter:
         assert frame.iloc[1]["pred_next_close"] == pytest.approx(103.95)
         assert frame.iloc[1]["actual_next_close"] == pytest.approx(102.9)
 
+    def test_assemble_backtest_for_ticker_walks_back_over_missing_weekend_dates(self) -> None:
+        predictions_df = pd.DataFrame(
+            [
+                {"date": "2026-04-13", "ticker": "AAPL", "y_pred": 0.02, "y_true": 0.01},
+            ]
+        )
+        market_history_df = pd.DataFrame(
+            [
+                {"Date": "2026-04-10", "Close": 100.0},
+            ]
+        )
+
+        frame = TrainPresenter.assemble_backtest_for_ticker(predictions_df, market_history_df, "AAPL")
+
+        assert len(frame) == 1
+        assert frame.iloc[0]["input_date"] == "2026-04-13"
+        assert frame.iloc[0]["base_close"] == 100.0
+        assert frame.iloc[0]["pred_next_close"] == pytest.approx(102.0)
+
 

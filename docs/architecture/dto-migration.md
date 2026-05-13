@@ -26,7 +26,7 @@ The module currently includes:
 
 DTOs that are used for adapter/persistence serialization provide `to_dict()` and `from_dict()` methods.
 
-`BacktestResult` is the serializable shape used by the presentation layer for chart-ready backtest summaries, while `TrainModelResult` carries the run directories, metrics, and dataset/feature metadata produced by training.
+The current Streamlit `Train & Backtest` view builds chart-ready summaries from `TrainModelResult` plus persisted run artifacts via `TrainPresenter`; it does not consume `BacktestResult` directly. `BacktestResult` remains available as the shared DTO for adapters that need a serializable backtest summary.
 
 ## Migration path for existing TrainModelRequest/TrainModelResult imports
 

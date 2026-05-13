@@ -43,7 +43,8 @@ from finsight.application.use_cases.train_model import TrainModelRequest
 - DTOs that need serialization for adapters/persistence expose `to_dict() -> dict[str, Any]` and a `from_dict(cls, payload)` classmethod.
 - Field types use built-in Python types or domain entities — no infrastructure types.
 - Prefer `str | None` for optional dates (ISO `"YYYY-MM-DD"` format).
-- Use `BacktestResult` for chart-ready backtest summaries and `ForecastResult` for forward prediction output.
+- The current Streamlit `Train & Backtest` view builds chart-ready summaries from `TrainModelResult` plus persisted run artifacts via `TrainPresenter`; it does not consume `BacktestResult` directly.
+- `BacktestResult` remains the shared DTO for backtest-style summaries when an adapter needs a serializable chart-ready shape.
 
 ### Adding a new DTO
 
@@ -81,7 +82,7 @@ Domain ports (`src/finsight/domain/ports.py`) use `typing.Protocol` with
 | `MarketDataPort` | Fetch OHLCV series and stock summary |
 | `FeatureStorePort` | Build feature datasets, split train/test, inspect metadata |
 | `ModelPort` | Evaluate a model type; expose supported model types |
-| `ModelRegistryPort` | Persist run artifacts (metrics, manifest, predictions) |
+| `ModelRegistryPort` | Persist and reload run artifacts (model, metrics, manifest, predictions) |
 
 ### Rules for ports
 

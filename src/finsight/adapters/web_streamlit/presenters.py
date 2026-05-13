@@ -231,8 +231,7 @@ class TrainPresenter:
                 if candidate in history_map:
                     base_close = history_map[candidate]
                     break
-                candidate = candidate - pd.Timedelta(days=1)
-                candidate = candidate.date() if isinstance(candidate, pd.Timestamp) else candidate
+                candidate = candidate - timedelta(days=1)
 
             if base_close is None:
                 # can't reconstruct
