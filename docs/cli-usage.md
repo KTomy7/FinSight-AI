@@ -155,16 +155,17 @@ finsight forecast --ticker AAPL --model-id hist_gbdt --horizon 2 --json
   "ticker": "AAPL"
 }
 ```
-finsight train --cutoff 2025-06-01 --years 2 --model-types naive_zero ridge hist_gbdt
+
 ---
 
-finsight compare --model-ids naive_zero ridge hist_gbdt --rank-by mae direction_accuracy
+## Error Handling
 
 All commands print errors to `stderr` on failure. Command-line usage and argument parsing errors exit with code `2`; validation errors, missing artifacts, and runtime failures exit with code `1`.
-finsight forecast --ticker AAPL --model-id hist_gbdt --horizon 30
+
 ### Common Error Scenarios
 
-finsight forecast --ticker AAPL --model-id hist_gbdt --horizon 30 --json > forecast_aapl.json
+#### Missing Required Arguments
+
 ```bash
 $ finsight forecast --ticker AAPL
 usage: finsight forecast [-h] --ticker TICKER --model-id MODEL_ID --horizon HORIZON ...
