@@ -38,6 +38,10 @@ model_defaults:
       label: "Ridge Regression"
       supports_training: true
       supports_prediction: true
+    - id: "hist_gbdt"
+      label: "Histogram Gradient Boosting"
+      supports_training: true
+      supports_prediction: true
   default_model_id: "naive_zero"
   horizon_min: 7
   horizon_max: 90
