@@ -1,6 +1,6 @@
 # CLI Usage Guide
 
-The FinSight CLI provides three main commands for training models, comparing runs, and generating forecasts.
+The FinSight CLI provides three main commands for training models, comparing runs, and generating forecasts. The Streamlit app now mirrors the same workflow with a dedicated `Train & Backtest` page and a streamlined `Price Prediction` page.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ The FinSight CLI provides three main commands for training models, comparing run
 
 ### `train` — Train and evaluate models
 
-Trains baseline models on fixed tickers using historical market data.
+Trains baseline models on historical market data and writes the artifacts that power the web app's training/backtesting view.
 
 **Syntax:**
 ```bash
@@ -46,6 +46,8 @@ finsight train --cutoff 2025-06-01 --years 3 --model-types naive_zero ridge
 [ridge] run_dir=artifacts/runs/2026-04-14T120000Z__ridge
   MAE=0.012456 RMSE=0.015678 DirectionAcc=0.6234
 ```
+
+The Streamlit `Train & Backtest` page uses the same underlying training use case, then renders chart-ready backtest outputs by ticker and model.
 
 ---
 

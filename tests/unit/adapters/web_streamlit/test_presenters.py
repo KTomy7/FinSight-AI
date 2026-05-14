@@ -4,8 +4,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter
-from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
+from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter, TrainPresenter
+from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow, TrainModelResult
 
 
 class TestForecastPresenter:
@@ -416,4 +416,90 @@ class TestComparisonPresenter:
         frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup={})
 
         assert frame.empty
+
+
+class TestTrainPresenter:
+    def test_format_metrics_frame_applies_labels_and_orders_columns(self) -> None:
+        result = TrainModelResult(
+            run_dirs={"ridge": "artifacts/runs/run_1"},
+            metrics={"ridge": {"mae": 0.12, "rmse": 0.34}},
+        )
+
+        frame = TrainPresenter.format_metrics_frame(result, label_lookup={"ridge": "Ridge Regression"})
+
+        assert list(frame.columns) == ["model", "model_id", "mae", "rmse"]
+        assert frame.iloc[0]["model"] == "Ridge Regression"
+        assert frame.iloc[0]["model_id"] == "ridge"
+        assert frame.iloc[0]["mae"] == 0.12
+        assert frame.iloc[0]["rmse"] == 0.34
+
+    def test_format_metrics_frame_returns_empty_dataframe_for_empty_metrics(self) -> None:
+        result = TrainModelResult(run_dirs={}, metrics={})
+
+        frame = TrainPresenter.format_metrics_frame(result, label_lookup={})
+
+        assert isinstance(frame, pd.DataFrame)
+        assert frame.empty
+
+    def test_load_predictions_csv_returns_none_when_file_is_missing(self, tmp_path) -> None:
+        run_dir = tmp_path / "missing-run"
+
+        assert TrainPresenter.load_predictions_csv(str(run_dir)) is None
+
+    def test_load_predictions_csv_returns_none_when_read_fails(self, tmp_path, monkeypatch) -> None:
+        run_dir = tmp_path / "run_with_bad_csv"
+        run_dir.mkdir()
+        (run_dir / "predictions.csv").write_text("date,ticker,y_pred\n2026-04-10,AAPL,0.12\n", encoding="utf-8")
+
+        monkeypatch.setattr("finsight.adapters.web_streamlit.presenters.pd.read_csv", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("bad csv")))
+
+        assert TrainPresenter.load_predictions_csv(str(run_dir)) is None
+
+    def test_assemble_backtest_for_ticker_reconstructs_actual_prices_from_y_true(self) -> None:
+        predictions_df = pd.DataFrame(
+            [
+                {"date": "2026-04-10", "ticker": "AAPL", "y_pred": 0.02, "y_true": 0.05},
+                {"date": "2026-04-13", "ticker": "AAPL", "y_pred": -0.01, "y_true": -0.02},
+            ]
+        )
+        market_history_df = pd.DataFrame(
+            [
+                {"Date": "2026-04-10", "Close": 100.0},
+                {"Date": "2026-04-13", "Close": 105.0},
+            ]
+        )
+
+        frame = TrainPresenter.assemble_backtest_for_ticker(predictions_df, market_history_df, "AAPL")
+
+        assert len(frame) == 2
+        assert list(frame["input_date"]) == ["2026-04-10", "2026-04-13"]
+        # Next date should prefer the next available prediction row, falling back to calendar day
+        assert list(frame["next_date"]) == ["2026-04-13", "2026-04-14"]
+        assert frame.iloc[0]["base_close"] == 100.0
+        assert frame.iloc[0]["pred_next_close"] == 102.0
+        assert frame.iloc[0]["actual_next_close"] == 105.0
+        assert frame.iloc[1]["base_close"] == 105.0
+        assert frame.iloc[1]["pred_next_close"] == pytest.approx(103.95)
+        assert frame.iloc[1]["actual_next_close"] == pytest.approx(102.9)
+
+    def test_assemble_backtest_for_ticker_walks_back_over_missing_weekend_dates(self) -> None:
+        predictions_df = pd.DataFrame(
+            [
+                {"date": "2026-04-13", "ticker": "AAPL", "y_pred": 0.02, "y_true": 0.01},
+            ]
+        )
+        market_history_df = pd.DataFrame(
+            [
+                {"Date": "2026-04-10", "Close": 100.0},
+            ]
+        )
+
+        frame = TrainPresenter.assemble_backtest_for_ticker(predictions_df, market_history_df, "AAPL")
+
+        assert len(frame) == 1
+        assert frame.iloc[0]["input_date"] == "2026-04-13"
+        assert frame.iloc[0]["base_close"] == 100.0
+        assert frame.iloc[0]["pred_next_close"] == pytest.approx(102.0)
+        assert frame.iloc[0]["actual_next_close"] == pytest.approx(101.0)
+
 

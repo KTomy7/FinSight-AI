@@ -9,10 +9,18 @@ concerns and improve testability.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import timedelta
+from typing import Any
 
 import pandas as pd
 
 import finsight.application.dto as application_dto
+
+
+def _as_float(value: Any) -> float | None:
+    if value is None or pd.isna(value):
+        return None
+    return float(value)
 
 
 class ForecastPresenter:
@@ -49,7 +57,7 @@ class ForecastPresenter:
         Extract date and pred_close columns for price chart visualization.
 
         Returns None if required columns are missing or if the DataFrame is empty.
-        Otherwise returns a DataFrame with date as the index and pred_close as the value.
+        Otherwise, returns a DataFrame with date as the index and pred_close as the value.
 
         Args:
             result: ForecastResult from the Forecast use case.
@@ -130,6 +138,152 @@ class ComparisonPresenter:
         return frame[base_columns + metric_columns + sorted(remaining_columns)]
 
 
-__all__ = ["ForecastPresenter", "ComparisonPresenter"]
+class TrainPresenter:
+    """Converts TrainModelResult and run artifacts into display-ready frames.
+
+    Presenters remain free of Streamlit calls; they prepare pandas DataFrames
+    or None to be rendered by views.
+    """
+
+    @staticmethod
+    def format_metrics_frame(result: application_dto.TrainModelResult, *, label_lookup: Mapping[str, str]) -> pd.DataFrame:
+        if not result.metrics:
+            return pd.DataFrame()
+
+        rows: list[dict[str, object]] = []
+        for model_id, model_metrics in result.metrics.items():
+            record: dict[str, object] = {
+                "model_id": model_id,
+                "model": label_lookup.get(model_id, model_id),
+            }
+            record.update(model_metrics)
+            rows.append(record)
+
+        frame = pd.DataFrame(rows)
+        if frame.empty:
+            return frame
+        # Prefer ordering model column first
+        cols = [c for c in ["model", "model_id"] if c in frame.columns] + [c for c in frame.columns if c not in ("model", "model_id")]
+        return frame[cols]
+
+    @staticmethod
+    def load_predictions_csv(run_dir: str) -> pd.DataFrame | None:
+        from pathlib import Path
+
+        path = Path(run_dir) / "predictions.csv"
+        if not path.exists():
+            return None
+        try:
+            df = pd.read_csv(path)
+            return df
+        except Exception:
+            return None
+
+    @staticmethod
+    def assemble_backtest_for_ticker(predictions_df: pd.DataFrame, market_history_df: pd.DataFrame, ticker: str) -> pd.DataFrame:
+        """Return a DataFrame with per-row: input_date, next_date, base_close, pred_next_close, actual_next_close, y_true, y_pred
+
+        predictions_df: must contain columns 'date' and 'y_pred' (and optionally 'y_true' and 'ticker').
+        market_history_df: OHLCV frame (Date/Close or date/close) for the ticker.
+        """
+        if predictions_df is None or predictions_df.empty:
+            return pd.DataFrame()
+
+        # Normalize prediction dates
+        working = predictions_df.copy()
+        working["date"] = pd.to_datetime(working["date"], errors="coerce")
+        working = working.dropna(subset=["date"]).sort_values(["date"]).reset_index(drop=True)
+
+        # Normalize market history
+        history = market_history_df.copy()
+        if "Date" in history.columns:
+            date_col = "Date"
+        elif "date" in history.columns:
+            date_col = "date"
+        else:
+            raise ValueError("Market history missing a date column. Expected 'Date' or 'date'.")
+
+        if "Close" in history.columns:
+            close_col = "Close"
+        elif "close" in history.columns:
+            close_col = "close"
+        else:
+            raise ValueError("Market history missing a close column. Expected 'Close' or 'close'.")
+
+        history[date_col] = pd.to_datetime(history[date_col], errors="coerce")
+        history = history.dropna(subset=[date_col]).sort_values([date_col]).reset_index(drop=True)
+        # Map date -> close
+        history_map = {dt.date(): float(val) for dt, val in zip(history[date_col], history[close_col]) if pd.notna(val)}
+
+        rows: list[dict[str, object]] = []
+        history_dates = sorted(history_map.keys())
+
+        for idx, row in working.reset_index(drop=True).iterrows():
+            input_dt = row["date"].date()
+            y_pred = _as_float(row.get("y_pred"))
+            if y_pred is None:
+                continue
+            y_true = row.get("y_true")
+
+            # base close: try exact date, else last available before date (walk back up to 7 days)
+            base_close = None
+            candidate = input_dt
+            for _ in range(8):
+                if candidate in history_map:
+                    base_close = history_map[candidate]
+                    break
+                candidate = candidate - timedelta(days=1)
+
+            if base_close is None:
+                # can't reconstruct base close for this input date
+                continue
+
+            # Determine next_date: prefer next prediction row date, else first available history date after input
+            next_date_dt = None
+            # prefer next row in predictions (same ticker) if it exists
+            if idx + 1 < len(working):
+                next_row_dt = working.loc[idx + 1, "date"]
+                if pd.notna(next_row_dt):
+                    next_date_dt = next_row_dt.date()
+
+            # fallback: find next date in market history after input_dt
+            if next_date_dt is None:
+                for hist_dt in history_dates:
+                    if hist_dt > input_dt:
+                        next_date_dt = hist_dt
+                        break
+
+            # final fallback: use next calendar day to keep one-row-per-prediction behavior
+            if next_date_dt is None:
+                next_date_dt = input_dt + timedelta(days=1)
+
+            pred_next_close = base_close * (1.0 + y_pred)
+
+            # actual next close: prefer market history if available, else reconstruct from y_true
+            actual_next_close = None
+            if next_date_dt in history_map:
+                actual_next_close = history_map[next_date_dt]
+            else:
+                actual_y_true = _as_float(y_true)
+                if actual_y_true is not None:
+                    actual_next_close = base_close * (1.0 + actual_y_true)
+
+            rows.append(
+                {
+                    "input_date": input_dt.isoformat(),
+                    "next_date": next_date_dt.isoformat(),
+                    "ticker": ticker,
+                    "base_close": float(base_close),
+                    "pred_next_close": float(pred_next_close),
+                    "actual_next_close": float(actual_next_close) if actual_next_close is not None else None,
+                    "y_pred": y_pred,
+                    "y_true": _as_float(y_true),
+                }
+            )
+
+        return pd.DataFrame(rows)
+
+
+__all__ = ["ForecastPresenter", "ComparisonPresenter", "TrainPresenter"]
 
 
