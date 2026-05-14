@@ -43,6 +43,17 @@ def render() -> None:
     # Create container once (it's cached by lru_cache, so no performance cost)
     container = build_container()
 
+    # Ticker selection (multiselect to filter result display) — outside form for immediate responsiveness
+    ticker_items = build_ticker_select_items(_SETTINGS.ticker_catalog.entries)
+    ticker_symbols = [symbol for symbol, _label in ticker_items]
+    ticker_label_lookup = {symbol: label for symbol, label in ticker_items}
+    selected_tickers = st.multiselect(
+        "Ticker results to display (select which ticker results to view)",
+        ticker_symbols,
+        default=ticker_symbols,
+        format_func=lambda symbol: ticker_label_lookup.get(symbol, symbol),
+    )
+
     with st.form("train_backtest_form"):
         st.info(f"Training configuration (fixed):\n- Cutoff date: {default_cutoff}\n- Lookback window: {_DEFAULT_YEARS} years\n- Training tickers: {', '.join(all_tickers)}")
 
@@ -54,17 +65,6 @@ def render() -> None:
             format_func=lambda model_id: model_id_to_label.get(model_id, model_id),
         )
 
-        # Ticker selection (multiselect to filter result display)
-        ticker_items = build_ticker_select_items(_SETTINGS.ticker_catalog.entries)
-        ticker_symbols = [symbol for symbol, _label in ticker_items]
-        ticker_label_lookup = {symbol: label for symbol, label in ticker_items}
-        selected_tickers = st.multiselect(
-            "Ticker results to display (select which ticker results to view)",
-            ticker_symbols,
-            default=ticker_symbols,
-            format_func=lambda symbol: ticker_label_lookup.get(symbol, symbol),
-        )
-
         submit = st.form_submit_button("Run training & backtest")
 
     # If form submitted, run training and cache results in session_state
@@ -74,7 +74,7 @@ def render() -> None:
             return
 
         if not selected_tickers:
-            st.warning("Select at least one ticker to train on.")
+            st.warning("Select at least one ticker to display results for.")
             return
 
         request = TrainModelRequest(
@@ -95,7 +95,6 @@ def render() -> None:
 
         # Cache results in session_state and clear any derived caches
         st.session_state.train_result = result
-        st.session_state.selected_tickers = selected_tickers
         st.session_state.label_lookup = model_id_to_label
         # Clear derived model_data so reruns don't show stale predictions/manifests
         st.session_state.pop("model_data", None)
@@ -107,9 +106,8 @@ def render() -> None:
         st.info("Configure training options and submit to run backtest.")
         return
 
-    # Use cached results
+    # Use cached results; ticker selection is always live from the widget above
     result = st.session_state.train_result
-    selected_tickers = st.session_state.selected_tickers
     label_lookup = st.session_state.label_lookup
 
     # Display aggregate metrics
