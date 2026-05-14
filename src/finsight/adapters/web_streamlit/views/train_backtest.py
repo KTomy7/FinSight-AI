@@ -93,10 +93,12 @@ def render() -> None:
             st.error(f"Training failed: {exc}")
             return
 
-        # Cache results in session_state
+        # Cache results in session_state and clear any derived caches
         st.session_state.train_result = result
         st.session_state.selected_tickers = selected_tickers
         st.session_state.label_lookup = model_id_to_label
+        # Clear derived model_data so reruns don't show stale predictions/manifests
+        st.session_state.pop("model_data", None)
 
         st.success("Training complete")
 

@@ -473,7 +473,8 @@ class TestTrainPresenter:
 
         assert len(frame) == 2
         assert list(frame["input_date"]) == ["2026-04-10", "2026-04-13"]
-        assert list(frame["next_date"]) == ["2026-04-11", "2026-04-14"]
+        # Next date should prefer the next available prediction row, falling back to calendar day
+        assert list(frame["next_date"]) == ["2026-04-13", "2026-04-14"]
         assert frame.iloc[0]["base_close"] == 100.0
         assert frame.iloc[0]["pred_next_close"] == 102.0
         assert frame.iloc[0]["actual_next_close"] == 105.0

@@ -216,17 +216,18 @@ class TrainPresenter:
         history_map = {dt.date(): float(val) for dt, val in zip(history[date_col], history[close_col]) if pd.notna(val)}
 
         rows: list[dict[str, object]] = []
-        for _, row in working.iterrows():
+        history_dates = sorted(history_map.keys())
+
+        for idx, row in working.reset_index(drop=True).iterrows():
             input_dt = row["date"].date()
             y_pred = _as_float(row.get("y_pred"))
             if y_pred is None:
                 continue
             y_true = row.get("y_true")
 
-            # base close try exact date, else last available before date
+            # base close: try exact date, else last available before date (walk back up to 7 days)
             base_close = None
             candidate = input_dt
-            # search up to 7 days backwards
             for _ in range(8):
                 if candidate in history_map:
                     base_close = history_map[candidate]
@@ -234,27 +235,49 @@ class TrainPresenter:
                 candidate = candidate - timedelta(days=1)
 
             if base_close is None:
-                # can't reconstruct
+                # can't reconstruct base close for this input date
                 continue
+
+            # Determine next_date: prefer next prediction row date, else first available history date after input
+            next_date_dt = None
+            # prefer next row in predictions (same ticker) if it exists
+            if idx + 1 < len(working):
+                next_row_dt = working.loc[idx + 1, "date"]
+                if pd.notna(next_row_dt):
+                    next_date_dt = next_row_dt.date()
+
+            # fallback: find next date in market history after input_dt
+            if next_date_dt is None:
+                for hist_dt in history_dates:
+                    if hist_dt > input_dt:
+                        next_date_dt = hist_dt
+                        break
+
+            # final fallback: use next calendar day to keep one-row-per-prediction behavior
+            if next_date_dt is None:
+                next_date_dt = input_dt + timedelta(days=1)
 
             pred_next_close = base_close * (1.0 + y_pred)
 
-            # actual next close: can be reconstructed from y_true and base_close
+            # actual next close: prefer market history if available, else reconstruct from y_true
             actual_next_close = None
-            actual_y_true = _as_float(y_true)
-            if actual_y_true is not None:
-                actual_next_close = base_close * (1.0 + actual_y_true)
+            if next_date_dt in history_map:
+                actual_next_close = history_map[next_date_dt]
+            else:
+                actual_y_true = _as_float(y_true)
+                if actual_y_true is not None:
+                    actual_next_close = base_close * (1.0 + actual_y_true)
 
             rows.append(
                 {
                     "input_date": input_dt.isoformat(),
-                    "next_date": (input_dt + timedelta(days=1)).isoformat(),
+                    "next_date": next_date_dt.isoformat(),
                     "ticker": ticker,
                     "base_close": float(base_close),
                     "pred_next_close": float(pred_next_close),
                     "actual_next_close": float(actual_next_close) if actual_next_close is not None else None,
                     "y_pred": y_pred,
-                    "y_true": actual_y_true,
+                    "y_true": _as_float(y_true),
                 }
             )
 
