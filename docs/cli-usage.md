@@ -18,7 +18,7 @@ The FinSight CLI provides three main commands for training models, comparing run
 
 ### `train` — Train and evaluate models
 
-Trains baseline models on historical market data and writes the artifacts that power the web app's training/backtesting view.
+Trains configured models on historical market data and writes the artifacts that power the web app's training/backtesting view.
 
 **Syntax:**
 ```bash
@@ -31,12 +31,12 @@ finsight train --cutoff CUTOFF_DATE [OPTIONS]
 **Optional Arguments:**
 - `--years N` — Lookback window in years (default: `2`)
 - `--end END_DATE` — Inclusive end date for data fetch (default: today)
-- `--model-types TYPE [TYPE ...]` — Model IDs to train (default: all training-enabled models)
+- `--model-types TYPE [TYPE ...]` — Model IDs to train (default: all training-enabled models, e.g. `naive_zero`, `naive_mean`, `ridge`, `hist_gbdt`)
 - `--artifacts-dir DIR` — Directory for run artifacts (default: `artifacts/runs`)
 
 **Example:**
 ```bash
-finsight train --cutoff 2025-06-01 --years 3 --model-types naive_zero ridge
+finsight train --cutoff 2025-06-01 --years 3 --model-types naive_zero ridge hist_gbdt
 ```
 
 **Output:**
@@ -45,6 +45,8 @@ finsight train --cutoff 2025-06-01 --years 3 --model-types naive_zero ridge
   MAE=0.015234 RMSE=0.018567 DirectionAcc=0.5432
 [ridge] run_dir=artifacts/runs/2026-04-14T120000Z__ridge
   MAE=0.012456 RMSE=0.015678 DirectionAcc=0.6234
+[hist_gbdt] run_dir=artifacts/runs/2026-04-14T120000Z__hist_gbdt
+  MAE=0.011982 RMSE=0.015201 DirectionAcc=0.6310
 ```
 
 The Streamlit `Train & Backtest` page uses the same underlying training use case, then renders chart-ready backtest outputs by ticker and model.
@@ -72,14 +74,15 @@ finsight compare [OPTIONS]
 
 **Example:**
 ```bash
-finsight compare --model-ids naive_zero ridge --rank-by mae direction_accuracy
+finsight compare --model-ids naive_zero ridge hist_gbdt --rank-by mae direction_accuracy
 ```
 
 **Output:**
 ```
 rank                model        mae    rmse  direction_accuracy
-   1     Ridge Regression   0.012456  0.0157              0.6234
-   2         Naive (Zero)   0.015234  0.0186              0.5432
+   1  Histogram Gradient Boosting   0.011982  0.0152              0.6310
+   2           Ridge Regression    0.012456  0.0157              0.6234
+   3               Naive (Zero)    0.015234  0.0186              0.5432
 ```
 
 ---
@@ -95,7 +98,7 @@ finsight forecast --ticker TICKER --model-id MODEL_ID --horizon DAYS [OPTIONS]
 
 **Required Arguments:**
 - `--ticker TICKER` — Stock ticker symbol (e.g., `AAPL`, `MSFT`)
-- `--model-id MODEL_ID` — Model ID to use for forecasting (e.g., `ridge`, `naive_zero`)
+- `--model-id MODEL_ID` — Model ID to use for forecasting (e.g., `hist_gbdt`, `ridge`, `naive_zero`)
 - `--horizon DAYS` — Forecast horizon in trading days (must be positive integer)
 
 **Optional Arguments:**
@@ -106,12 +109,12 @@ finsight forecast --ticker TICKER --model-id MODEL_ID --horizon DAYS [OPTIONS]
 
 **Example:**
 ```bash
-finsight forecast --ticker AAPL --model-id ridge --horizon 5
+finsight forecast --ticker AAPL --model-id hist_gbdt --horizon 5
 ```
 
 **Output:**
 ```
-[ridge] ticker=AAPL horizon_days=5 rows=5
+[hist_gbdt] ticker=AAPL horizon_days=5 rows=5
 2026-04-15 pred_ret_1d=0.0125 pred_close=152.45
 2026-04-16 pred_ret_1d=-0.0087 pred_close=151.13
 2026-04-17 pred_ret_1d=0.0234 pred_close=154.68
@@ -128,7 +131,7 @@ Fields:
 
 **Example:**
 ```bash
-finsight forecast --ticker AAPL --model-id ridge --horizon 2 --json
+finsight forecast --ticker AAPL --model-id hist_gbdt --horizon 2 --json
 ```
 
 **Output:**
@@ -136,7 +139,7 @@ finsight forecast --ticker AAPL --model-id ridge --horizon 2 --json
 {
   "generated_at": "2026-04-14T12:00:00Z",
   "horizon_days": 2,
-  "model_id": "ridge",
+  "model_id": "hist_gbdt",
   "predictions": [
     {
       "date": "2026-04-15",
@@ -152,16 +155,16 @@ finsight forecast --ticker AAPL --model-id ridge --horizon 2 --json
   "ticker": "AAPL"
 }
 ```
-
+finsight train --cutoff 2025-06-01 --years 2 --model-types naive_zero ridge hist_gbdt
 ---
 
-## Error Handling
+finsight compare --model-ids naive_zero ridge hist_gbdt --rank-by mae direction_accuracy
 
 All commands print errors to `stderr` on failure. Command-line usage and argument parsing errors exit with code `2`; validation errors, missing artifacts, and runtime failures exit with code `1`.
-
+finsight forecast --ticker AAPL --model-id hist_gbdt --horizon 30
 ### Common Error Scenarios
 
-#### Missing Required Arguments
+finsight forecast --ticker AAPL --model-id hist_gbdt --horizon 30 --json > forecast_aapl.json
 ```bash
 $ finsight forecast --ticker AAPL
 usage: finsight forecast [-h] --ticker TICKER --model-id MODEL_ID --horizon HORIZON ...

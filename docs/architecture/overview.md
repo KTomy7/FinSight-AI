@@ -73,7 +73,10 @@ Provides concrete implementations of the domain ports.
 |---|---|
 | `market_data/yfinance_provider.py` | `MarketDataPort` |
 | `features/feature_store.py` | `FeatureStorePort` |
-| `ml/sklearn/baseline.py` | `ModelPort` |
+| `ml/sklearn/router.py` | `ModelPort` (routes model IDs to concrete sklearn adapters) |
+| `ml/sklearn/baseline.py` | `ModelPort` (`naive_zero`, `naive_mean`) |
+| `ml/sklearn/linear.py` | `ModelPort` (`ridge`) |
+| `ml/sklearn/tree.py` | `ModelPort` (`hist_gbdt`) |
 | `ml/registry.py` | `ModelRegistryPort` |
 
 **Rules:**
