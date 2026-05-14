@@ -4,8 +4,6 @@ from typing import Sequence
 
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 from sklearn.inspection import permutation_importance
 
 from finsight.domain.entities import ModelEvaluationResult
@@ -52,27 +50,31 @@ class HistGradientBoostingModel(ModelPort):
         y_test = test_df[target_column].to_numpy(dtype=float)
 
         # Hyperparameters for HistGradientBoostingRegressor
-        learning_rate = 0.1
-        max_iter = 100
-        max_depth = 5
+        learning_rate = 0.03
+        max_iter = 200
+        max_depth = 2
+        min_samples_leaf = 20
+        l2_regularization = 1.0
 
-        model = Pipeline([
-            ("scaler", StandardScaler()),
-            ("hist_gbdt", HistGradientBoostingRegressor(
-                learning_rate=learning_rate,
-                max_iter=max_iter,
-                max_depth=max_depth,
-                random_state=RANDOM_STATE,
-            )),
-        ])
+        model = HistGradientBoostingRegressor(
+            learning_rate=learning_rate,
+            max_iter=max_iter,
+            max_depth=max_depth,
+            random_state=RANDOM_STATE,
+            min_samples_leaf=min_samples_leaf,
+            l2_regularization=l2_regularization,
+        )
         model.fit(x_train, y_train)
         y_pred = model.predict(x_test)
-        hist_gbdt_model = model.named_steps["hist_gbdt"]
+        hist_gbdt_model = model
 
         # Compute feature importances (if available)
         try:
-            importances = hist_gbdt_model.feature_importances_
-            feature_importance = self._feature_importance_ranking(feature_columns, importances)
+            importances = getattr(hist_gbdt_model, "feature_importances_", None)
+            if importances is not None:
+                feature_importance = self._feature_importance_ranking(feature_columns, importances)
+            else:
+                raise AttributeError
         except AttributeError:
             # Fallback: use permutation importance if direct importance is unavailable
             perm_importance = permutation_importance(
@@ -104,9 +106,11 @@ class HistGradientBoostingModel(ModelPort):
                     "learning_rate": learning_rate,
                     "max_iter": max_iter,
                     "max_depth": max_depth,
+                    "min_samples_leaf": min_samples_leaf,
+                    "l2_regularization": l2_regularization,
                     "random_state": RANDOM_STATE,
                 },
-                "preprocessing": {"scaler": "StandardScaler"},
+                "preprocessing": {},
                 "feature_importance": {item["feature"]: item["importance"] for item in feature_importance},
                 "feature_importance_ranking": feature_importance,
             },

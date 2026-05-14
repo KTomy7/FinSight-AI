@@ -56,8 +56,7 @@ def test_hist_gbdt_evaluates_and_returns_metrics() -> None:
     assert np.isfinite(predictions["y_pred"]).all()
 
     # Verify trained artifact
-    assert result.trained_artifact.__class__.__name__ == "Pipeline"
-    assert tuple(result.trained_artifact.named_steps.keys()) == ("scaler", "hist_gbdt")
+    assert result.trained_artifact.__class__.__name__ == "HistGradientBoostingRegressor"
 
 
 def test_hist_gbdt_reports_supported_model_types() -> None:
@@ -223,13 +222,13 @@ def test_hist_gbdt_metadata_contains_required_fields() -> None:
     # Required fields
     assert metadata["adapter"] == "HistGradientBoostingModel"
     assert metadata["model_id"] == "hist_gbdt"
-    assert metadata["estimator"] == "Pipeline"
+    assert metadata["estimator"] == "HistGradientBoostingRegressor"
     assert metadata["base_estimator"] == "HistGradientBoostingRegressor"
     assert isinstance(metadata["feature_columns"], list)
     assert metadata["n_features"] == len(metadata["feature_columns"])
     assert isinstance(metadata["hyperparams"], dict)
     assert metadata["hyperparams"]["random_state"] == RANDOM_STATE
-    assert metadata["preprocessing"]["scaler"] == "StandardScaler"
+    assert metadata["preprocessing"] == {}
     assert isinstance(metadata["feature_importance"], dict)
     assert isinstance(metadata["feature_importance_ranking"], list)
 
