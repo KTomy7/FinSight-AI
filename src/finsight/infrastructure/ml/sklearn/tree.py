@@ -66,11 +66,10 @@ class HistGradientBoostingModel(ModelPort):
         )
         model.fit(x_train, y_train)
         y_pred = model.predict(x_test)
-        hist_gbdt_model = model
 
         # Compute feature importances (if available)
         try:
-            importances = getattr(hist_gbdt_model, "feature_importances_", None)
+            importances = getattr(model, "feature_importances_", None)
             if importances is not None:
                 feature_importance = self._feature_importance_ranking(feature_columns, importances)
             else:
@@ -99,7 +98,7 @@ class HistGradientBoostingModel(ModelPort):
                 "adapter": "HistGradientBoostingModel",
                 "model_id": model_type,
                 "estimator": model.__class__.__name__,
-                "base_estimator": hist_gbdt_model.__class__.__name__,
+                "base_estimator": model.__class__.__name__,
                 "feature_columns": feature_columns,
                 "n_features": len(feature_columns),
                 "hyperparams": {

@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import cast
 
 import pandas as pd
-import pytest
 
 from finsight.application.dto import FetchMarketDataRequest, ForecastRequest, TrainModelRequest
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
