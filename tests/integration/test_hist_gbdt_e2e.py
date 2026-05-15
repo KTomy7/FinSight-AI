@@ -261,7 +261,7 @@ def test_hist_gbdt_router_integration() -> None:
     supported_types = router.supported_model_types()
 
     assert "hist_gbdt" in supported_types
-    assert ("naive_zero", "naive_mean", "ridge", "hist_gbdt") == supported_types
+    assert ("naive_zero", "naive_mean", "ridge", "hist_gbdt", "xgboost") == supported_types
 
 
 def test_hist_gbdt_produces_valid_metadata() -> None:

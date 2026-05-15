@@ -149,7 +149,7 @@ class XGBoostModel(ModelPort):
     @staticmethod
     def _feature_importance_ranking(
         feature_columns: list[str], importances: object
-    ) -> list[dict[str, float | str]]:
+    ) -> list[dict[str, float | str | int]]:
         importance_series = pd.Series(importances, index=feature_columns, dtype=float)
         ranking = importance_series.sort_values(ascending=False)
         return [
