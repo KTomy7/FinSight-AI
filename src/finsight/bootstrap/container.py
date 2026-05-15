@@ -10,7 +10,7 @@ from finsight.application.use_cases.train_model import TrainModel
 from finsight.config.settings import get_settings
 from finsight.infrastructure.features.feature_store import PandasFeatureStore
 from finsight.infrastructure.market_data.yfinance_provider import YFinanceMarketDataProvider
-from finsight.infrastructure.ml.sklearn import HistGradientBoostingModel, LinearSklearnModel, NaiveBaselineModel, SklearnModelRouter
+from finsight.infrastructure.ml.sklearn import HistGradientBoostingModel, LinearSklearnModel, NaiveBaselineModel, XGBoostModel, SklearnModelRouter
 from finsight.infrastructure.ml.registry import LocalFileModelRegistry
 
 
@@ -41,6 +41,7 @@ def build_container() -> AppContainer:
         NaiveBaselineModel(),
         LinearSklearnModel(),
         HistGradientBoostingModel(),
+        XGBoostModel(),
     ])
     model_registry = LocalFileModelRegistry()
     train_model = TrainModel(

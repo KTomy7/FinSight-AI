@@ -11,7 +11,7 @@ def test_streamlit_views_will_show_hist_gbdt_in_training_models() -> None:
 
     # Verify hist_gbdt will appear in the multiselect dropdown
     assert "hist_gbdt" in training_model_ids
-    assert len(training_model_ids) == 4  # naive_zero, naive_mean, ridge, hist_gbdt
+    assert len(training_model_ids) == 5  # naive_zero, naive_mean, ridge, hist_gbdt, xgboost
 
 
 def test_streamlit_views_will_show_hist_gbdt_in_prediction_models() -> None:
@@ -21,7 +21,7 @@ def test_streamlit_views_will_show_hist_gbdt_in_prediction_models() -> None:
 
     # Verify hist_gbdt will appear in the selectbox dropdown
     assert "hist_gbdt" in prediction_model_ids
-    assert len(prediction_model_ids) == 4  # naive_zero, naive_mean, ridge, hist_gbdt
+    assert len(prediction_model_ids) == 5  # naive_zero, naive_mean, ridge, hist_gbdt, xgboost
 
 
 def test_streamlit_views_will_show_correct_label_for_hist_gbdt() -> None:
@@ -55,8 +55,8 @@ def test_train_backtest_view_will_get_hist_gbdt_models() -> None:
     assert "hist_gbdt" in training_model_ids
     assert model_id_to_label["hist_gbdt"] == "Histogram Gradient Boosting"
 
-    # Verify the multiselect would show all 4 models by default
-    assert len(training_model_ids) == 4
+    # Verify the multiselect would show all 5 models by default
+    assert len(training_model_ids) == 5
 
 
 def test_predict_view_will_get_hist_gbdt_models() -> None:
@@ -77,8 +77,8 @@ def test_predict_view_will_get_hist_gbdt_models() -> None:
     assert "hist_gbdt" in prediction_model_ids
     assert id_to_label["hist_gbdt"] == "Histogram Gradient Boosting"
 
-    # Verify the selectbox would show all 4 models
-    assert len(prediction_model_ids) == 4
+    # Verify the selectbox would show all 5 models
+    assert len(prediction_model_ids) == 5
 
     # Verify default model_id logic in predict.py still works
     default_model_id = model_defaults.default_model_id

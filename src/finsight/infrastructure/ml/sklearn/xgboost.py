@@ -3,19 +3,19 @@ from __future__ import annotations
 from typing import Sequence
 
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.inspection import permutation_importance
+from xgboost import XGBRegressor
 
 from finsight.domain.entities import ModelEvaluationResult
 from finsight.domain.metrics import forecast_metrics
 from finsight.domain.ports import ModelPort
 
-SUPPORTED_MODEL_TYPES = ("hist_gbdt",)
+SUPPORTED_MODEL_TYPES = ("xgboost",)
 RANDOM_STATE = 42
 
 
-class HistGradientBoostingModel(ModelPort):
-    """Tree-based gradient boosting regressor adapter."""
+class XGBoostModel(ModelPort):
+    """XGBoost gradient boosting regressor adapter."""
 
     def evaluate(
         self,
@@ -42,32 +42,36 @@ class HistGradientBoostingModel(ModelPort):
 
         feature_columns = self._feature_columns(train_df, test_df, target_column=target_column, id_columns=id_columns)
         if not feature_columns:
-            raise ValueError("No numeric feature columns available for histogram gradient boosting model evaluation.")
+            raise ValueError("No numeric feature columns available for XGBoost model evaluation.")
 
         x_train = train_df.loc[:, feature_columns].to_numpy(dtype=float)
         x_test = test_df.loc[:, feature_columns].to_numpy(dtype=float)
         y_train = train_df[target_column].to_numpy(dtype=float)
         y_test = test_df[target_column].to_numpy(dtype=float)
 
-        # Hyperparameters for HistGradientBoostingRegressor
+        # Hyperparameters for XGBoost
+        n_estimators = 300
         learning_rate = 0.03
-        max_iter = 200
-        max_depth = 2
-        min_samples_leaf = 20
-        l2_regularization = 1.0
+        max_depth = 3
+        subsample = 0.8
+        colsample_bytree = 0.8
+        reg_lambda = 1.0
 
-        model = HistGradientBoostingRegressor(
+        model = XGBRegressor(
+            n_estimators=n_estimators,
             learning_rate=learning_rate,
-            max_iter=max_iter,
             max_depth=max_depth,
+            subsample=subsample,
+            colsample_bytree=colsample_bytree,
+            reg_lambda=reg_lambda,
+            n_jobs=1,
             random_state=RANDOM_STATE,
-            min_samples_leaf=min_samples_leaf,
-            l2_regularization=l2_regularization,
+            verbosity=0,
         )
         model.fit(x_train, y_train)
         y_pred = model.predict(x_test)
 
-        # Compute feature importances (if available)
+        # Compute feature importances (native XGBoost importance preferred)
         try:
             importances = getattr(model, "feature_importances_", None)
             if importances is not None:
@@ -95,18 +99,20 @@ class HistGradientBoostingModel(ModelPort):
             predictions=predictions.reset_index(drop=True),
             trained_artifact=model,
             model_metadata={
-                "adapter": "HistGradientBoostingModel",
+                "adapter": "XGBoostModel",
                 "model_id": model_type,
                 "estimator": model.__class__.__name__,
                 "base_estimator": model.__class__.__name__,
                 "feature_columns": feature_columns,
                 "n_features": len(feature_columns),
                 "hyperparams": {
+                    "n_estimators": n_estimators,
                     "learning_rate": learning_rate,
-                    "max_iter": max_iter,
                     "max_depth": max_depth,
-                    "min_samples_leaf": min_samples_leaf,
-                    "l2_regularization": l2_regularization,
+                    "subsample": subsample,
+                    "colsample_bytree": colsample_bytree,
+                    "reg_lambda": reg_lambda,
+                    "n_jobs": 1,
                     "random_state": RANDOM_STATE,
                 },
                 "preprocessing": {},
@@ -145,7 +151,7 @@ class HistGradientBoostingModel(ModelPort):
     @staticmethod
     def _feature_importance_ranking(
         feature_columns: list[str], importances: object
-    ) -> list[dict[str, float | str]]:
+    ) -> list[dict[str, float | str | int]]:
         importance_series = pd.Series(importances, index=feature_columns, dtype=float)
         ranking = importance_series.sort_values(ascending=False)
         return [
@@ -156,5 +162,4 @@ class HistGradientBoostingModel(ModelPort):
             }
             for idx, (feature, _) in enumerate(ranking.items())
         ]
-
 

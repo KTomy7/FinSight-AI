@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import cast
 
 import pandas as pd
-import pytest
 
 from finsight.application.dto import FetchMarketDataRequest, ForecastRequest, TrainModelRequest
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
@@ -263,7 +261,7 @@ def test_hist_gbdt_router_integration() -> None:
     supported_types = router.supported_model_types()
 
     assert "hist_gbdt" in supported_types
-    assert ("naive_zero", "naive_mean", "ridge", "hist_gbdt") == supported_types
+    assert ("naive_zero", "naive_mean", "ridge", "hist_gbdt", "xgboost") == supported_types
 
 
 def test_hist_gbdt_produces_valid_metadata() -> None:

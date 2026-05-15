@@ -27,7 +27,7 @@ def test_build_container_exposes_hist_gbdt_in_router(monkeypatch) -> None:
     supported_types = router.supported_model_types()
 
     assert "hist_gbdt" in supported_types
-    assert ("naive_zero", "naive_mean", "ridge", "hist_gbdt") == supported_types
+    assert ("naive_zero", "naive_mean", "ridge", "hist_gbdt", "xgboost") == supported_types
 
 
 def test_build_container_hist_gbdt_enables_training() -> None:
