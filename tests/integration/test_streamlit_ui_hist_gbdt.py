@@ -21,7 +21,7 @@ def test_streamlit_views_will_show_hist_gbdt_in_prediction_models() -> None:
 
     # Verify hist_gbdt will appear in the selectbox dropdown
     assert "hist_gbdt" in prediction_model_ids
-    assert len(prediction_model_ids) == 5 # naive_zero, naive_mean, ridge, hist_gbdt, xgboost
+    assert len(prediction_model_ids) == 5  # naive_zero, naive_mean, ridge, hist_gbdt, xgboost
 
 
 def test_streamlit_views_will_show_correct_label_for_hist_gbdt() -> None:
