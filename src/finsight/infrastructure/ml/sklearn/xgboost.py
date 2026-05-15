@@ -64,6 +64,7 @@ class XGBoostModel(ModelPort):
             subsample=subsample,
             colsample_bytree=colsample_bytree,
             reg_lambda=reg_lambda,
+            n_jobs=1,
             random_state=RANDOM_STATE,
             verbosity=0,
         )
@@ -111,6 +112,7 @@ class XGBoostModel(ModelPort):
                     "subsample": subsample,
                     "colsample_bytree": colsample_bytree,
                     "reg_lambda": reg_lambda,
+                    "n_jobs": 1,
                     "random_state": RANDOM_STATE,
                 },
                 "preprocessing": {},

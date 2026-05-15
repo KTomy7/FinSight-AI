@@ -208,6 +208,7 @@ def test_xgboost_metadata_includes_hyperparams() -> None:
     assert "colsample_bytree" in hyperparams
     assert "reg_lambda" in hyperparams
     assert "random_state" in hyperparams
+    assert "n_jobs" in hyperparams
 
     # Check values match expected defaults
     assert hyperparams["n_estimators"] == 300
@@ -217,6 +218,7 @@ def test_xgboost_metadata_includes_hyperparams() -> None:
     assert hyperparams["colsample_bytree"] == 0.8
     assert hyperparams["reg_lambda"] == 1.0
     assert hyperparams["random_state"] == 42
+    assert hyperparams["n_jobs"] == 1
 
 
 def test_xgboost_rejects_unsupported_model_type() -> None:
