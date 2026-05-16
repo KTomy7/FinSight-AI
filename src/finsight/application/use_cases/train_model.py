@@ -7,7 +7,7 @@ from finsight.application.contracts import build_run_manifest
 import finsight.application.dto as application_dto
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.domain.entities import ModelEvaluationResult
-from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort
+from finsight.domain.ports import FeatureStorePort, ModelPort, ModelRegistryPort, RunRegistryPort
 
 TARGET_COLUMN = "target_ret_1d"
 
@@ -59,6 +59,7 @@ class TrainModel:
         feature_store: FeatureStorePort,
         model: ModelPort,
         model_registry: ModelRegistryPort,
+        run_registry: RunRegistryPort,
         training_tickers: tuple[str, ...] | list[str],
         supported_model_types: tuple[str, ...] | list[str] | None = None,
         default_interval: str = "1d",
@@ -76,6 +77,7 @@ class TrainModel:
         self._feature_store = feature_store
         self._model = model
         self._model_registry = model_registry
+        self._run_registry = run_registry
         self._training_tickers = tuple(training_tickers)
         self._supported_model_types = configured_supported_model_types
         self._default_interval = default_interval
@@ -208,6 +210,23 @@ class TrainModel:
                 run_dir=run_dir,
                 predictions=evaluation_result.predictions,
             )
+
+            # Record run in registry (after all artifacts are saved)
+            run_summary = application_dto.RunSummary(
+                run_id=run_id,
+                model_id=model_type,
+                created_at=created_at_utc,
+                metrics=enriched_metrics,
+            )
+            try:
+                self._run_registry.record_completed_run(
+                    artifact_root=request.artifacts_dir,
+                    run_summary=run_summary,
+                )
+            except Exception as e:
+                # Log error but don't fail the training
+                import logging
+                logging.warning(f"Failed to record run in registry: {e}")
 
             run_dirs[model_type] = run_dir
             metrics[model_type] = enriched_metrics
