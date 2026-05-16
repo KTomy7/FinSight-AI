@@ -568,6 +568,22 @@ class ForecastRequest:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class RunSummary:
+    """Summary of a completed training run for registry recording."""
+    run_id: str
+    model_id: str
+    created_at: str  # ISO 8601 timestamp
+    metrics: dict[str, float]  # e.g., {"mae": 0.123, "rmse": 0.45, ...}
+
+
+@dataclass(frozen=True, slots=True)
+class RegistrySnapshot:
+    """In-memory representation of the run registry file."""
+    updated_at: str  # ISO 8601 timestamp
+    best_by_model: dict[str, dict[str, Any]]  # model_id -> {run_id, metrics, created_at}
+
+
 __all__ = [
     "CompareModelsRequest",
     "CompareModelsResult",
@@ -581,6 +597,8 @@ __all__ = [
     "MetricValue",
     "ModelComparisonRow",
     "ModelRunArtifacts",
+    "RegistrySnapshot",
+    "RunSummary",
     "TrainModelRequest",
     "TrainModelResult",
 ]

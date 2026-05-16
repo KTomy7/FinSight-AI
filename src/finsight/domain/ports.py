@@ -97,3 +97,25 @@ class ModelRegistryPort(Protocol):
     def load_run_artifacts(self, *, artifact_root: str, run_id: str) -> object:
         raise NotImplementedError
 
+
+@runtime_checkable
+class RunRegistryPort(Protocol):
+    """Port for managing the run registry (e.g., artifacts/registry.json)."""
+
+    def load_registry(self, *, artifact_root: str) -> Any:
+        """
+        Load the registry snapshot from storage.
+
+        Returns the deserialized registry dict or None if not found/corrupt.
+        """
+        raise NotImplementedError
+
+    def record_completed_run(self, *, artifact_root: str, run_summary: Any) -> None:
+        """
+        Record a completed training run in the registry.
+
+        Compares new run against current best by metric and updates if better.
+        """
+        raise NotImplementedError
+
+

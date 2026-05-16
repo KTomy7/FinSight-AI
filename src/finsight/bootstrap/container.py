@@ -12,6 +12,7 @@ from finsight.infrastructure.features.feature_store import PandasFeatureStore
 from finsight.infrastructure.market_data.yfinance_provider import YFinanceMarketDataProvider
 from finsight.infrastructure.ml.sklearn import HistGradientBoostingModel, LinearSklearnModel, NaiveBaselineModel, XGBoostModel, SklearnModelRouter
 from finsight.infrastructure.ml.registry import LocalFileModelRegistry
+from finsight.infrastructure.ml.run_registry import LocalFileRunRegistry
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,7 @@ class AppContainer:
     train_model: TrainModel
     compare_models: CompareModels
     forecast: Forecast
+    run_registry: LocalFileRunRegistry
 
 
 @lru_cache(maxsize=1)
@@ -44,11 +46,15 @@ def build_container() -> AppContainer:
         XGBoostModel(),
     ])
     model_registry = LocalFileModelRegistry()
+    run_registry = LocalFileRunRegistry(
+        supported_model_ids=settings.model_defaults.training_model_ids(),
+    )
     train_model = TrainModel(
         fetch_market_data=fetch_market_data,
         feature_store=feature_store,
         model=model,
         model_registry=model_registry,
+        run_registry=run_registry,
         training_tickers=settings.ticker_catalog.symbols(),
         supported_model_types=settings.model_defaults.training_model_ids(),
         default_interval=settings.stock_data.default_interval,
@@ -65,4 +71,5 @@ def build_container() -> AppContainer:
         train_model=train_model,
         compare_models=compare_models,
         forecast=forecast,
+        run_registry=run_registry,
     )
