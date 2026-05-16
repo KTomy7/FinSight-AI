@@ -9,13 +9,14 @@ import pandas as pd
 import pytest
 
 import finsight.application.use_cases.train_model as train_model_module
-from finsight.application.dto import FetchMarketDataRequest, TrainModelRequest
+from finsight.application.dto import FetchMarketDataRequest, RunSummary, TrainModelRequest
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.application.use_cases.train_model import TrainModel
 from finsight.application.contracts import REQUIRED_MANIFEST_KEYS
 from finsight.domain.entities import OHLCVSeries
 from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
 from finsight.domain.value_objects import DateRange, Interval, Ticker
+from finsight.domain.ports import RunRegistryPort
 from finsight.infrastructure.features import PandasFeatureStore
 from finsight.infrastructure.ml.registry import LocalFileModelRegistry
 from finsight.infrastructure.ml.sklearn import LinearSklearnModel, NaiveBaselineModel, SklearnModelRouter
@@ -29,6 +30,19 @@ class _StubFetchMarketData:
     def execute(self, request: FetchMarketDataRequest) -> SimpleNamespace:
         self.calls.append(request)
         return SimpleNamespace(history=self._series_by_ticker[request.ticker])
+
+
+class _StubRunRegistry(RunRegistryPort):
+    """Stub implementation of RunRegistryPort for testing."""
+
+    def __init__(self) -> None:
+        self.recorded_runs: list[RunSummary] = []
+
+    def load_registry(self, *, artifact_root: str):
+        return None
+
+    def record_completed_run(self, *, artifact_root: str, run_summary: RunSummary) -> None:
+        self.recorded_runs.append(run_summary)
 
 
 def _make_ohlcv_series(ticker: str, *, start: str = "2024-01-01", periods: int = 900) -> OHLCVSeries:
@@ -60,6 +74,7 @@ def test_execute_uses_expected_fetch_date_window_and_default_interval(tmp_path) 
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
         model_registry=LocalFileModelRegistry(),
+        run_registry=_StubRunRegistry(),
         training_tickers=tickers,
         default_interval="1wk",
     )
@@ -103,6 +118,7 @@ def test_execute_writes_artifacts_and_applies_unique_run_dir_suffix(tmp_path, mo
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
         model_registry=LocalFileModelRegistry(),
+        run_registry=_StubRunRegistry(),
         training_tickers=tickers,
         default_interval="1d",
     )
@@ -178,6 +194,7 @@ def test_execute_rejects_unsupported_model_types_from_model_port(tmp_path) -> No
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
         model_registry=LocalFileModelRegistry(),
+        run_registry=_StubRunRegistry(),
         training_tickers=tickers,
     )
 
@@ -203,6 +220,7 @@ def test_execute_rejects_model_type_not_enabled_by_configuration(tmp_path) -> No
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
         model_registry=LocalFileModelRegistry(),
+        run_registry=_StubRunRegistry(),
         training_tickers=tickers,
         supported_model_types=("naive_zero",),
     )
@@ -228,6 +246,7 @@ def test_constructor_rejects_configured_model_types_not_supported_by_model_port(
             feature_store=PandasFeatureStore(),
             model=NaiveBaselineModel(),
             model_registry=LocalFileModelRegistry(),
+            run_registry=_StubRunRegistry(),
             training_tickers=("AAPL",),
             supported_model_types=("ridge",),
         )
@@ -241,6 +260,7 @@ def test_execute_rejects_non_positive_years(tmp_path) -> None:
         feature_store=PandasFeatureStore(),
         model=NaiveBaselineModel(),
         model_registry=LocalFileModelRegistry(),
+        run_registry=_StubRunRegistry(),
         training_tickers=tickers,
     )
 
@@ -266,6 +286,7 @@ def test_execute_supports_ridge_via_router(tmp_path) -> None:
         feature_store=PandasFeatureStore(),
         model=SklearnModelRouter(adapters=[NaiveBaselineModel(), LinearSklearnModel()]),
         model_registry=LocalFileModelRegistry(),
+        run_registry=_StubRunRegistry(),
         training_tickers=tickers,
         supported_model_types=("ridge",),
     )

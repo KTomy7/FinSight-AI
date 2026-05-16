@@ -9,12 +9,13 @@ from typing import cast
 
 import pandas as pd
 
-from finsight.application.dto import FetchMarketDataRequest, ForecastRequest, TrainModelRequest
+from finsight.application.dto import FetchMarketDataRequest, ForecastRequest, RunSummary, TrainModelRequest
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
 from finsight.application.use_cases.forecast import Forecast
 from finsight.application.use_cases.train_model import TrainModel
 from finsight.domain.entities import OHLCVSeries
 from finsight.domain.metrics import SUPPORTED_METRIC_NAMES
+from finsight.domain.ports import RunRegistryPort
 from finsight.domain.value_objects import DateRange, Interval, Ticker
 from finsight.infrastructure.features.feature_store import PandasFeatureStore
 from finsight.infrastructure.ml.registry import LocalFileModelRegistry
@@ -34,6 +35,19 @@ class _StubFetchMarketData:
         if ticker not in self.data_by_ticker:
             raise ValueError(f"No data for ticker {ticker}")
         return SimpleNamespace(history=self.data_by_ticker[ticker])
+
+
+class _StubRunRegistry(RunRegistryPort):
+    """Stub implementation of RunRegistryPort for integration tests."""
+
+    def __init__(self) -> None:
+        self.recorded_runs: list[RunSummary] = []
+
+    def load_registry(self, *, artifact_root: str):
+        return None
+
+    def record_completed_run(self, *, artifact_root: str, run_summary: RunSummary) -> None:
+        self.recorded_runs.append(run_summary)
 
 
 def _make_synthetic_ohlcv_series(ticker: str) -> OHLCVSeries:
@@ -75,6 +89,7 @@ def test_hist_gbdt_training_end_to_end() -> None:
                 HistGradientBoostingModel(),
             ]),
             model_registry=LocalFileModelRegistry(),
+            run_registry=_StubRunRegistry(),
             training_tickers=tickers,
             supported_model_types=("hist_gbdt",),
         )
@@ -139,6 +154,7 @@ def test_hist_gbdt_training_with_multiple_models() -> None:
                 HistGradientBoostingModel(),
             ]),
             model_registry=LocalFileModelRegistry(),
+            run_registry=_StubRunRegistry(),
             training_tickers=tickers,
             supported_model_types=("naive_zero", "hist_gbdt"),
         )
@@ -186,6 +202,7 @@ def test_hist_gbdt_deterministic_predictions() -> None:
                 HistGradientBoostingModel(),
             ]),
             model_registry=LocalFileModelRegistry(),
+            run_registry=_StubRunRegistry(),
             training_tickers=tickers,
             supported_model_types=("hist_gbdt",),
         )
@@ -208,6 +225,7 @@ def test_hist_gbdt_deterministic_predictions() -> None:
                 HistGradientBoostingModel(),
             ]),
             model_registry=LocalFileModelRegistry(),
+            run_registry=_StubRunRegistry(),
             training_tickers=tickers,
             supported_model_types=("hist_gbdt",),
         )
@@ -276,6 +294,7 @@ def test_hist_gbdt_produces_valid_metadata() -> None:
             feature_store=PandasFeatureStore(),
             model=SklearnModelRouter(adapters=[HistGradientBoostingModel()]),
             model_registry=LocalFileModelRegistry(),
+            run_registry=_StubRunRegistry(),
             training_tickers=tickers,
             supported_model_types=("hist_gbdt",),
         )
