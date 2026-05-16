@@ -59,7 +59,7 @@ def build_container() -> AppContainer:
         supported_model_types=settings.model_defaults.training_model_ids(),
         default_interval=settings.stock_data.default_interval,
     )
-    compare_models = CompareModels(model_registry=model_registry)
+    compare_models = CompareModels(model_registry=model_registry, run_registry=run_registry)
     forecast = Forecast(
         fetch_market_data=fetch_market_data,
         feature_store=feature_store,

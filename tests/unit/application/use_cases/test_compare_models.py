@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from finsight.application.dto import CompareModelsRequest, ModelRunArtifacts
+from finsight.application.dto import CompareModelsRequest, ModelRunArtifacts, RegistrySnapshot
 from finsight.application.use_cases.compare_models import CompareModels
 from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
-from finsight.domain.ports import ModelRegistryPort
+from finsight.domain.ports import ModelRegistryPort, RunRegistryPort
 
 
 @dataclass
@@ -54,6 +54,17 @@ class _StubRegistry(ModelRegistryPort):
             if artifacts.run_id == run_id:
                 return artifacts
         raise FileNotFoundError(f"No run artifacts found for run_id '{run_id}' under artifact root: {artifact_root}")
+
+
+@dataclass
+class _StubRunRegistry(RunRegistryPort):
+    snapshot: RegistrySnapshot | None
+
+    def load_registry(self, *, artifact_root: str):
+        return self.snapshot
+
+    def record_completed_run(self, *, artifact_root: str, run_summary):
+        raise NotImplementedError
 
 
 def _make_model_run_artifacts(*, model_id: str, run_id: str, metrics: dict[str, float | int | str]) -> ModelRunArtifacts:
@@ -159,4 +170,97 @@ def test_compare_models_rejects_missing_rank_metric() -> None:
         CompareModels(model_registry=registry).execute(
             CompareModelsRequest(model_ids=["alpha"], rank_by=[METRIC_MAE, METRIC_DIRECTION_ACCURACY])
         )
+
+
+def test_compare_models_uses_registry_best_runs_when_requested() -> None:
+    @dataclass
+    class _BestRunRegistry(ModelRegistryPort):
+        latest_by_model_id: dict[str, str]
+        artifacts_by_run_id: dict[str, ModelRunArtifacts]
+
+        def create_run_dir(self, *, artifact_root: str, run_id: str) -> str:
+            raise NotImplementedError
+
+        def latest_run_id(self, *, artifact_root: str, model_id: str) -> str:
+            return self.latest_by_model_id[model_id]
+
+        def save_model(self, *, run_dir: str, model: object) -> None:
+            raise NotImplementedError
+
+        def load_model(self, *, artifact_root: str, run_id: str) -> object:
+            raise NotImplementedError
+
+        def save_metrics(self, *, run_dir: str, metrics):
+            raise NotImplementedError
+
+        def load_metrics(self, *, artifact_root: str, run_id: str):
+            raise NotImplementedError
+
+        def save_manifest(self, *, run_dir: str, manifest):
+            raise NotImplementedError
+
+        def load_manifest(self, *, artifact_root: str, run_id: str):
+            raise NotImplementedError
+
+        def save_predictions(self, *, run_dir: str, predictions):
+            raise NotImplementedError
+
+        def load_run_artifacts(self, *, artifact_root: str, run_id: str) -> ModelRunArtifacts:
+            return self.artifacts_by_run_id[run_id]
+
+    model_registry = _BestRunRegistry(
+        latest_by_model_id={
+            "alpha": "2026-04-11T120000Z__alpha_latest",
+            "beta": "2026-04-12T120000Z__beta_latest",
+        },
+        artifacts_by_run_id={
+            "2026-04-11T120000Z__alpha_latest": _make_model_run_artifacts(
+                model_id="alpha",
+                run_id="2026-04-11T120000Z__alpha_latest",
+                metrics={METRIC_MAE: 0.12, METRIC_RMSE: 0.22, METRIC_DIRECTION_ACCURACY: 0.80},
+            ),
+            "2026-04-11T120000Z__alpha_best": _make_model_run_artifacts(
+                model_id="alpha",
+                run_id="2026-04-11T120000Z__alpha_best",
+                metrics={METRIC_MAE: 0.09, METRIC_RMSE: 0.20, METRIC_DIRECTION_ACCURACY: 0.84},
+            ),
+            "2026-04-12T120000Z__beta_latest": _make_model_run_artifacts(
+                model_id="beta",
+                run_id="2026-04-12T120000Z__beta_latest",
+                metrics={METRIC_MAE: 0.13, METRIC_RMSE: 0.25, METRIC_DIRECTION_ACCURACY: 0.81},
+            ),
+            "2026-04-12T120000Z__beta_best": _make_model_run_artifacts(
+                model_id="beta",
+                run_id="2026-04-12T120000Z__beta_best",
+                metrics={METRIC_MAE: 0.10, METRIC_RMSE: 0.20, METRIC_DIRECTION_ACCURACY: 0.90},
+            ),
+        },
+    )
+    run_registry = _StubRunRegistry(
+        snapshot=RegistrySnapshot(
+            updated_at="2026-05-16T12:00:00Z",
+            best_by_model={
+                "alpha": {
+                    "run_id": "2026-04-11T120000Z__alpha_best",
+                    "created_at": "2026-04-11T12:00:00Z",
+                    "metrics": {METRIC_MAE: 0.09},
+                },
+                "beta": {
+                    "run_id": "2026-04-12T120000Z__beta_best",
+                    "created_at": "2026-04-12T12:00:00Z",
+                    "metrics": {METRIC_MAE: 0.10},
+                },
+            },
+        )
+    )
+
+    result = CompareModels(model_registry=model_registry, run_registry=run_registry).execute(
+        CompareModelsRequest(model_ids=["alpha", "beta"], rank_by=[METRIC_MAE], use_best_runs=True)
+    )
+
+    assert [row.run_id for row in result.rows] == [
+        "2026-04-11T120000Z__alpha_best",
+        "2026-04-12T120000Z__beta_best",
+    ]
+
 

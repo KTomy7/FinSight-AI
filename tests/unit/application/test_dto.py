@@ -91,6 +91,7 @@ def test_compare_models_request_and_result_roundtrip() -> None:
         artifacts_dir="artifacts/runs",
         rank_by=["mae", "direction_accuracy"],
         metric_directions={"direction_accuracy": "desc"},
+        use_best_runs=True,
     )
     result = CompareModelsResult(
         rows=[

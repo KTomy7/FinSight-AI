@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import streamlit as st
-from pathlib import Path
 
 from finsight.application.dto import CompareModelsRequest
 from finsight.adapters.web_streamlit.presenters import ComparisonPresenter
@@ -21,7 +20,6 @@ _METRIC_LABELS = {
 @st.cache_resource(ttl=_SETTINGS.cache.resource_ttl_seconds)
 def _compare_models_uc():
     return build_container().compare_models
-
 
 
 def render():
@@ -76,6 +74,7 @@ def render():
             CompareModelsRequest(
                 model_ids=list(selected_model_ids),
                 rank_by=list(selected_rank_by),
+                use_best_runs=True,
             )
         )
     except FileNotFoundError as error:
@@ -88,28 +87,7 @@ def render():
         st.error(f"Leaderboard generation failed unexpectedly: {error}")
         return
 
-    # Load registry to enrich with best-run metadata
-    registry_snapshot = None
-    try:
-        # Use standard artifacts directory (consistent with CLI default)
-        artifacts_dir = "artifacts/runs"
-        from finsight.infrastructure.ml.run_registry import LocalFileRunRegistry
-        registry = LocalFileRunRegistry(
-            supported_model_ids=_SETTINGS.model_defaults.training_model_ids()
-        )
-        registry_snapshot = registry.load_registry(artifact_root=artifacts_dir)
-    except Exception:
-        pass  # Graceful fallback: registry is optional for display
-
-    # Format leaderboard with registry metadata if available
-    if registry_snapshot:
-        frame = ComparisonPresenter.format_leaderboard_with_best_runs(
-            result,
-            label_lookup=id_to_label,
-            registry_snapshot=registry_snapshot,
-        )
-    else:
-        frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup=id_to_label)
+    frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup=id_to_label)
 
     if frame.empty:
         st.warning("No comparison rows were returned.")
@@ -117,25 +95,9 @@ def render():
 
     st.subheader("Leaderboard")
 
-    # Display leaderboard with conditional column hiding based on registry availability
-    if registry_snapshot and "is_best_run" in frame.columns:
-        st.dataframe(
-            frame,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "is_best_run": st.column_config.CheckboxColumn(
-                    "⭐ Best",
-                    help="Marked as the best performing run for this model in the registry",
-                ),
-                "best_run_since": st.column_config.TextColumn(
-                    "Best Since",
-                    help="When this run became the best for its model",
-                ),
-            },
-        )
-    else:
-        st.dataframe(frame, use_container_width=True, hide_index=True)
+    st.dataframe(frame, use_container_width=True, hide_index=True)
+
+    st.caption("This leaderboard shows the current best recorded run for each selected model when available.")
 
     st.caption(
         "Ranking priority: "
