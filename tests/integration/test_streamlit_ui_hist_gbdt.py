@@ -5,7 +5,7 @@ from finsight.config.settings import get_settings
 
 
 def test_streamlit_views_will_show_hist_gbdt_in_training_models() -> None:
-    """Verify hist_gbdt appears in training model dropdown (train_backtest.py view)."""
+    """Verify hist_gbdt appears in training model dropdown (train_model.py view)."""
     settings = get_settings()
     training_model_ids = list(settings.model_defaults.training_model_ids())
 
@@ -37,9 +37,9 @@ def test_streamlit_views_will_show_correct_label_for_hist_gbdt() -> None:
     assert label_to_id["Histogram Gradient Boosting"] == "hist_gbdt"
 
 
-def test_train_backtest_view_will_get_hist_gbdt_models() -> None:
+def test_train_model_view_will_get_hist_gbdt_models() -> None:
     """
-    Simulate what train_backtest.py does:
+    Simulate what train_model.py does:
     - Get training_model_ids from settings
     - Build id_to_label lookup
     - Format into UI with labels
@@ -47,7 +47,7 @@ def test_train_backtest_view_will_get_hist_gbdt_models() -> None:
     settings = get_settings()
     model_defaults = settings.model_defaults
 
-    # This is what train_backtest.py does:
+    # This is what train_model.py does:
     training_model_ids = list(model_defaults.training_model_ids())
     model_id_to_label = model_defaults.id_to_label()
 

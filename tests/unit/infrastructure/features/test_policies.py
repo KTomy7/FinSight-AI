@@ -5,7 +5,7 @@ from datetime import date, datetime
 import pandas as pd
 import pytest
 
-from finsight.infrastructure.features import TimeSplitPolicy
+from finsight.infrastructure.features import TimeSplitPolicy, WalkForwardSplitPolicy
 
 
 def _to_iso_dates(series: pd.Series) -> list[str]:
@@ -151,4 +151,67 @@ def test_split_is_deterministically_sorted_from_unsorted_input() -> None:
         ("BBB", "2024-01-03"),
         ("BBB", "2024-01-04"),
     ]
+
+
+def test_walk_forward_generates_expected_fold_boundaries() -> None:
+    df = pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=10, freq="D").tolist() * 2,
+            "ticker": ["AAA"] * 10 + ["BBB"] * 10,
+            "x": list(range(10)) + list(range(10)),
+            "target_ret_1d": [0.1] * 20,
+        }
+    )
+
+    policy = WalkForwardSplitPolicy(min_train_size=4, test_size=2, step_size=2)
+    folds = policy.split_frame(df)
+
+    assert [fold.fold_index for fold in folds] == [1, 2, 3]
+    assert [(fold.train_end.isoformat(), fold.test_start.isoformat(), fold.test_end.isoformat()) for fold in folds] == [
+        ("2024-01-04", "2024-01-05", "2024-01-06"),
+        ("2024-01-06", "2024-01-07", "2024-01-08"),
+        ("2024-01-08", "2024-01-09", "2024-01-10"),
+    ]
+    assert [len(fold.train_df) for fold in folds] == [8, 12, 16]
+    assert [len(fold.test_df) for fold in folds] == [4, 4, 4]
+
+
+def test_walk_forward_respects_max_folds() -> None:
+    df = pd.DataFrame(
+        {
+            "date": pd.date_range("2024-01-01", periods=12, freq="D"),
+            "ticker": ["AAA"] * 12,
+            "x": list(range(12)),
+            "target_ret_1d": [0.1] * 12,
+        }
+    )
+
+    policy = WalkForwardSplitPolicy(min_train_size=4, test_size=2, step_size=1, max_folds=2)
+    folds = policy.split_frame(df)
+
+    assert len(folds) == 2
+    assert [fold.fold_index for fold in folds] == [1, 2]
+
+
+def test_walk_forward_rejects_invalid_parameters_and_impossible_splits() -> None:
+    with pytest.raises(ValueError, match="min_train_size must be a positive integer"):
+        WalkForwardSplitPolicy(min_train_size=0, test_size=2, step_size=1)
+
+    with pytest.raises(ValueError, match="test_size must be a positive integer"):
+        WalkForwardSplitPolicy(min_train_size=2, test_size=0, step_size=1)
+
+    with pytest.raises(ValueError, match="step_size must be a positive integer"):
+        WalkForwardSplitPolicy(min_train_size=2, test_size=2, step_size=0)
+
+    df = pd.DataFrame(
+        {
+            "date": ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"],
+            "ticker": ["AAA", "AAA", "AAA", "AAA"],
+            "x": [1.0, 2.0, 3.0, 4.0],
+            "target_ret_1d": [0.1, 0.2, 0.3, 0.4],
+        }
+    )
+    with pytest.raises(ValueError, match="cannot produce any fold"):
+        WalkForwardSplitPolicy(min_train_size=3, test_size=2, step_size=1).split_frame(df)
+
 

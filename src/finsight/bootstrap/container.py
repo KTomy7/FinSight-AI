@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from finsight.application.use_cases.fetch_market_data import FetchMarketData
+from finsight.application.use_cases.backtest import Backtest
 from finsight.application.use_cases.compare_models import CompareModels
 from finsight.application.use_cases.forecast import Forecast
 from finsight.application.use_cases.train_model import TrainModel
@@ -20,6 +21,7 @@ class AppContainer:
     """Composition root for concrete implementations used by adapters."""
 
     fetch_market_data: FetchMarketData
+    backtest: Backtest
     train_model: TrainModel
     compare_models: CompareModels
     forecast: Forecast
@@ -59,6 +61,14 @@ def build_container() -> AppContainer:
         supported_model_types=settings.model_defaults.training_model_ids(),
         default_interval=settings.stock_data.default_interval,
     )
+    backtest = Backtest(
+        fetch_market_data=fetch_market_data,
+        feature_store=feature_store,
+        model=model,
+        training_tickers=settings.ticker_catalog.symbols(),
+        supported_model_ids=settings.model_defaults.training_model_ids(),
+        default_interval=settings.stock_data.default_interval,
+    )
     compare_models = CompareModels(model_registry=model_registry, run_registry=run_registry)
     forecast = Forecast(
         fetch_market_data=fetch_market_data,
@@ -68,6 +78,7 @@ def build_container() -> AppContainer:
 
     return AppContainer(
         fetch_market_data=fetch_market_data,
+        backtest=backtest,
         train_model=train_model,
         compare_models=compare_models,
         forecast=forecast,

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast
 
 import pandas as pd
 import pytest
 
 import finsight.adapters.web_streamlit.views.compare as compare_view
 import finsight.adapters.web_streamlit.views.predict as predict_view
-import finsight.adapters.web_streamlit.views.train_backtest as train_backtest_view
-from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
+import finsight.adapters.web_streamlit.views.backtest as backtest_view
+import finsight.adapters.web_streamlit.views.train_model as train_model_view
+import finsight.application.dto as application_dto
+from finsight.application.dto import BacktestReport, BacktestResult, CompareModelsResult, ForecastResult, ModelComparisonRow
 
 
 class _Ctx:
@@ -327,13 +330,13 @@ def test_predict_render_executes_forecast_use_case_and_renders_result(monkeypatc
     assert not any(kind == "error" for kind, _ in events)
 
 
-def test_train_backtest_render_shows_info_when_no_cached_results(monkeypatch) -> None:
+def test_train_model_render_shows_info_when_no_cached_results(monkeypatch) -> None:
     events: list[tuple[str, str]] = []
 
     session_state = _SessionState()
-    monkeypatch.setattr(train_backtest_view.st, "session_state", session_state, raising=False)
+    monkeypatch.setattr(train_model_view.st, "session_state", session_state, raising=False)
     monkeypatch.setattr(
-        train_backtest_view,
+        train_model_view,
         "_SETTINGS",
         SimpleNamespace(
             model_defaults=SimpleNamespace(
@@ -346,28 +349,28 @@ def test_train_backtest_render_shows_info_when_no_cached_results(monkeypatch) ->
             ),
         ),
     )
-    monkeypatch.setattr(train_backtest_view, "build_container", lambda: SimpleNamespace())
-    monkeypatch.setattr(train_backtest_view, "build_ticker_select_items", lambda _entries: [("AAPL", "Apple Inc.")])
-    monkeypatch.setattr(train_backtest_view.st, "title", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "markdown", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "info", lambda msg: events.append(("info", msg)))
-    monkeypatch.setattr(train_backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
-    monkeypatch.setattr(train_backtest_view.st, "multiselect", lambda _label, options, **_kwargs: list(options))
-    monkeypatch.setattr(train_backtest_view.st, "form", lambda _name: _Ctx())
-    monkeypatch.setattr(train_backtest_view.st, "form_submit_button", lambda _label: False)
+    monkeypatch.setattr(train_model_view, "build_container", lambda: SimpleNamespace())
+    monkeypatch.setattr(train_model_view, "build_ticker_select_items", lambda _entries: [("AAPL", "Apple Inc.")])
+    monkeypatch.setattr(train_model_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "markdown", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "info", lambda msg: events.append(("info", msg)))
+    monkeypatch.setattr(train_model_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(train_model_view.st, "multiselect", lambda _label, options, **_kwargs: list(options))
+    monkeypatch.setattr(train_model_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(train_model_view.st, "form_submit_button", lambda _label: False)
 
-    train_backtest_view.render()
+    train_model_view.render()
 
-    assert ("info", "Configure training options and submit to run backtest.") in events
+    assert ("info", "Configure training options and submit to run training.") in events
 
 
-def test_train_backtest_render_warns_when_no_models_selected(monkeypatch) -> None:
+def test_train_model_render_warns_when_no_models_selected(monkeypatch) -> None:
     events: list[tuple[str, str]] = []
 
     session_state = _SessionState()
-    monkeypatch.setattr(train_backtest_view.st, "session_state", session_state, raising=False)
+    monkeypatch.setattr(train_model_view.st, "session_state", session_state, raising=False)
     monkeypatch.setattr(
-        train_backtest_view,
+        train_model_view,
         "_SETTINGS",
         SimpleNamespace(
             model_defaults=SimpleNamespace(
@@ -380,22 +383,22 @@ def test_train_backtest_render_warns_when_no_models_selected(monkeypatch) -> Non
             ),
         ),
     )
-    monkeypatch.setattr(train_backtest_view, "build_container", lambda: SimpleNamespace())
-    monkeypatch.setattr(train_backtest_view, "build_ticker_select_items", lambda _entries: [("AAPL", "Apple Inc.")])
-    monkeypatch.setattr(train_backtest_view.st, "title", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "markdown", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "info", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
-    monkeypatch.setattr(train_backtest_view.st, "multiselect", lambda label, options, **_kwargs: [] if label == "Models to train" else list(options))
-    monkeypatch.setattr(train_backtest_view.st, "form", lambda _name: _Ctx())
-    monkeypatch.setattr(train_backtest_view.st, "form_submit_button", lambda _label: True)
+    monkeypatch.setattr(train_model_view, "build_container", lambda: SimpleNamespace())
+    monkeypatch.setattr(train_model_view, "build_ticker_select_items", lambda _entries: [("AAPL", "Apple Inc.")])
+    monkeypatch.setattr(train_model_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "markdown", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "info", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(train_model_view.st, "multiselect", lambda label, options, **_kwargs: [] if label == "Models to train" else list(options))
+    monkeypatch.setattr(train_model_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(train_model_view.st, "form_submit_button", lambda _label: True)
 
-    train_backtest_view.render()
+    train_model_view.render()
 
     assert ("warning", "Select at least one model to train.") in events
 
 
-def test_train_backtest_render_stops_when_no_predictions_are_available(monkeypatch) -> None:
+def test_train_model_render_stops_when_no_predictions_are_available(monkeypatch) -> None:
     events: list[tuple[str, str]] = []
 
     session_state = _SessionState(
@@ -403,19 +406,110 @@ def test_train_backtest_render_stops_when_no_predictions_are_available(monkeypat
         selected_tickers=["AAPL"],
         label_lookup={"ridge": "Ridge Regression"},
     )
-    monkeypatch.setattr(train_backtest_view.st, "session_state", session_state, raising=False)
-    monkeypatch.setattr(train_backtest_view.TrainPresenter, "load_predictions_csv", staticmethod(lambda _run_dir: None))
-    monkeypatch.setattr(train_backtest_view.st, "title", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "markdown", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "info", lambda msg: events.append(("info", msg)))
-    monkeypatch.setattr(train_backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
-    monkeypatch.setattr(train_backtest_view.st, "subheader", lambda _msg: None)
-    monkeypatch.setattr(train_backtest_view.st, "dataframe", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(train_backtest_view.st, "stop", lambda: (_ for _ in ()).throw(SystemExit))
+    monkeypatch.setattr(train_model_view.st, "session_state", session_state, raising=False)
+    monkeypatch.setattr(train_model_view.TrainPresenter, "load_predictions_csv", staticmethod(lambda _run_dir: None))
+    monkeypatch.setattr(train_model_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "markdown", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "info", lambda msg: events.append(("info", msg)))
+    monkeypatch.setattr(train_model_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(train_model_view.st, "subheader", lambda _msg: None)
+    monkeypatch.setattr(train_model_view.st, "dataframe", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(train_model_view.st, "stop", lambda: (_ for _ in ()).throw(SystemExit))
 
     with pytest.raises(SystemExit):
-        train_backtest_view.render()
+        train_model_view.render()
 
     assert ("warning", "No predictions data available for any model.") in events
+
+
+def test_backtest_render_shows_info_when_form_not_submitted(monkeypatch) -> None:
+    events: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(backtest_view, "_SETTINGS", SimpleNamespace(model_defaults=SimpleNamespace(
+        training_model_ids=lambda: ("ridge",),
+        id_to_label=lambda: {"ridge": "Ridge Regression"},
+    )))
+    monkeypatch.setattr(backtest_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(backtest_view.st, "markdown", lambda _msg: None)
+    monkeypatch.setattr(backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(backtest_view.st, "info", lambda msg: events.append(("info", msg)))
+    monkeypatch.setattr(backtest_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(backtest_view.st, "multiselect", lambda _label, options, **_kwargs: list(options))
+    monkeypatch.setattr(backtest_view.st, "slider", lambda _label, **_kwargs: 2)
+    monkeypatch.setattr(backtest_view.st, "number_input", lambda _label, **_kwargs: int(_kwargs.get("value", 1)))
+    monkeypatch.setattr(backtest_view.st, "form_submit_button", lambda _label: False)
+
+    backtest_view.render()
+
+    assert ("info", "Choose models and walk-forward settings, then run backtest.") in events
+
+
+def test_backtest_render_happy_path_renders_summary_and_folds(monkeypatch) -> None:
+    events: list[tuple[str, object]] = []
+
+    monkeypatch.setattr(backtest_view, "_SETTINGS", SimpleNamespace(model_defaults=SimpleNamespace(
+        training_model_ids=lambda: ("ridge",),
+        id_to_label=lambda: {"ridge": "Ridge Regression"},
+    )))
+    monkeypatch.setattr(backtest_view.st, "title", lambda _msg: None)
+    monkeypatch.setattr(backtest_view.st, "markdown", lambda msg: events.append(("markdown", msg)))
+    monkeypatch.setattr(backtest_view.st, "warning", lambda msg: events.append(("warning", msg)))
+    monkeypatch.setattr(backtest_view.st, "info", lambda msg: events.append(("info", msg)))
+    monkeypatch.setattr(backtest_view.st, "error", lambda msg: events.append(("error", msg)))
+    monkeypatch.setattr(backtest_view.st, "subheader", lambda msg: events.append(("subheader", msg)))
+    monkeypatch.setattr(backtest_view.st, "caption", lambda msg: events.append(("caption", msg)))
+    monkeypatch.setattr(backtest_view.st, "dataframe", lambda frame, **_kwargs: events.append(("dataframe", frame)))
+    monkeypatch.setattr(backtest_view.st, "form", lambda _name: _Ctx())
+    monkeypatch.setattr(backtest_view.st, "multiselect", lambda _label, options, **_kwargs: list(options))
+    monkeypatch.setattr(backtest_view.st, "slider", lambda _label, **_kwargs: 2)
+    monkeypatch.setattr(backtest_view.st, "number_input", lambda _label, **_kwargs: int(_kwargs.get("value", 1)))
+    monkeypatch.setattr(backtest_view.st, "form_submit_button", lambda _label: True)
+
+    report = BacktestReport(
+        results=[
+            BacktestResult(
+                model_id="ridge",
+                metrics={"fold_count": 1, "mae": 0.1},
+                folds=cast(
+                    list[application_dto.SerializableRow],
+                    cast(
+                        object,
+                        [
+                            {
+                                "fold_index": 1,
+                                "train_start": "2024-01-01",
+                                "train_end": "2024-06-01",
+                                "test_start": "2024-06-02",
+                                "test_end": "2024-07-01",
+                                "n_train": 100,
+                                "n_test": 20,
+                                "metrics": {"mae": 0.1},
+                            }
+                        ],
+                    ),
+                ),
+            )
+        ],
+        split_spec={"fold_count": 1},
+    )
+    monkeypatch.setattr(backtest_view, "_backtest_uc", lambda: SimpleNamespace(execute=lambda _req: report))
+    monkeypatch.setattr(
+        backtest_view.BacktestPresenter,
+        "format_model_metrics_frame",
+        staticmethod(lambda _report, *, label_lookup: pd.DataFrame([{"model": label_lookup["ridge"], "mae": 0.1}])),
+    )
+    monkeypatch.setattr(
+        backtest_view.BacktestPresenter,
+        "format_fold_frame",
+        staticmethod(lambda _result: pd.DataFrame([{"fold_index": 1, "metric_mae": 0.1}])),
+    )
+
+    backtest_view.render()
+
+    assert ("subheader", "Backtest summary by model") in events
+    assert ("subheader", "Fold-level details") in events
+    assert any(event[0] == "caption" and "Walk-forward folds evaluated" in str(event[1]) for event in events)
+    assert len([event for event in events if event[0] == "dataframe"]) >= 2
+    assert not [event for event in events if event[0] in {"warning", "error"}]
 
 
