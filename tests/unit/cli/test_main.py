@@ -4,7 +4,7 @@ import json
 import finsight.cli.main as cli_main
 from finsight.cli.main import _build_parser, _run_train
 from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow
-from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_R2, METRIC_RMSE
 from finsight.config.settings import ModelCatalogEntry, ModelDefaults, Settings, TickerCatalogSettings
 
 
@@ -35,12 +35,20 @@ def test_compare_parser_accepts_compare_model_ids_and_rank_by() -> None:
     parser = _build_parser()
 
     args = parser.parse_args(
-        ["compare", "--model-ids", "naive_zero", "ridge", "--rank-by", "mae", "direction_accuracy"]
+        ["compare", "--model-ids", "naive_zero", "ridge", "--rank-by", "mae", "r2", "direction_accuracy"]
     )
 
     assert args.command == "compare"
     assert args.model_ids == ["naive_zero", "ridge"]
-    assert args.rank_by == ["mae", "direction_accuracy"]
+    assert args.rank_by == ["mae", "r2", "direction_accuracy"]
+
+
+def test_compare_parser_defaults_include_r2_in_priority() -> None:
+    parser = _build_parser()
+
+    args = parser.parse_args(["compare"])
+
+    assert args.rank_by == ["mae", "rmse", "r2", "direction_accuracy"]
 
 
 def test_forecast_parser_accepts_required_args() -> None:
@@ -252,6 +260,7 @@ def test_run_train_prints_metrics_using_canonical_metric_keys(monkeypatch, capsy
                         "naive_zero": {
                             METRIC_MAE: 0.1,
                             METRIC_RMSE: 0.2,
+                            METRIC_R2: 0.88,
                             METRIC_DIRECTION_ACCURACY: 0.75,
                         }
                     },
@@ -269,7 +278,7 @@ def test_run_train_prints_metrics_using_canonical_metric_keys(monkeypatch, capsy
     captured = capsys.readouterr().out
     assert exit_code == 0
     assert "[naive_zero] run_dir=artifacts/runs/example" in captured
-    assert "MAE=0.100000 RMSE=0.200000 DirectionAcc=0.7500" in captured
+    assert "MAE=0.100000 RMSE=0.200000 R2=0.880000 DirectionAcc=0.7500" in captured
 
 
 def test_run_train_handles_validation_error(monkeypatch, capsys) -> None:

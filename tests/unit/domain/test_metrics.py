@@ -5,11 +5,13 @@ import pytest
 from finsight.domain.metrics import (
     METRIC_DIRECTION_ACCURACY,
     METRIC_MAE,
+    METRIC_R2,
     METRIC_RMSE,
     SUPPORTED_METRIC_NAMES,
     direction_accuracy,
     forecast_metrics,
     mean_absolute_error,
+    r2_score,
     root_mean_squared_error,
 )
 
@@ -27,6 +29,18 @@ def test_root_mean_squared_error() -> None:
 
     expected_rmse = math.sqrt((0.01 + 0.01 + 0.01) / 3)
     assert root_mean_squared_error(y_true, y_pred) == pytest.approx(expected_rmse)
+
+
+def test_r2_score() -> None:
+    y_true = [3.0, -0.5, 2.0, 7.0]
+    y_pred = [2.5, 0.0, 2.0, 8.0]
+
+    assert r2_score(y_true, y_pred) == pytest.approx(0.9486081370449679)
+
+
+def test_r2_score_handles_constant_targets() -> None:
+    assert r2_score([1.0, 1.0, 1.0], [1.0, 1.0, 1.0]) == pytest.approx(1.0)
+    assert r2_score([1.0, 1.0, 1.0], [1.0, 1.0, 2.0]) == pytest.approx(0.0)
 
 
 def test_direction_accuracy_with_default_threshold() -> None:
@@ -53,6 +67,7 @@ def test_forecast_metrics_returns_canonical_metric_keys() -> None:
     assert tuple(metrics.keys()) == SUPPORTED_METRIC_NAMES
     assert metrics[METRIC_MAE] == pytest.approx(0.10)
     assert metrics[METRIC_RMSE] == pytest.approx(math.sqrt((0.01 + 0.01 + 0.01) / 3))
+    assert metrics[METRIC_R2] == pytest.approx(0.7631578947368421)
     assert metrics[METRIC_DIRECTION_ACCURACY] == pytest.approx(2 / 3)
 
 

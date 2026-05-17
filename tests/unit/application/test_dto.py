@@ -92,8 +92,8 @@ def test_compare_models_request_and_result_roundtrip() -> None:
     request = CompareModelsRequest(
         model_ids=["naive_zero", "ridge"],
         artifacts_dir="artifacts/runs",
-        rank_by=["mae", "direction_accuracy"],
-        metric_directions={"direction_accuracy": "desc"},
+        rank_by=["mae", "r2", "direction_accuracy"],
+        metric_directions={"r2": "desc", "direction_accuracy": "desc"},
         use_best_runs=True,
     )
     result = CompareModelsResult(
@@ -102,16 +102,22 @@ def test_compare_models_request_and_result_roundtrip() -> None:
                 rank=1,
                 model_id="ridge",
                 run_id="2026-04-12T120000Z__ridge",
-                metrics={"mae": 0.09, "direction_accuracy": 0.87},
-                sort_key=(0.09, -0.87, "ridge", "2026-04-12T120000Z__ridge"),
+                metrics={"mae": 0.09, "r2": 0.92, "direction_accuracy": 0.87},
+                sort_key=(0.09, -0.92, -0.87, "ridge", "2026-04-12T120000Z__ridge"),
             )
         ],
-        rank_by=["mae", "direction_accuracy"],
-        metric_directions={"mae": "asc", "direction_accuracy": "desc"},
+        rank_by=["mae", "r2", "direction_accuracy"],
+        metric_directions={"mae": "asc", "r2": "desc", "direction_accuracy": "desc"},
     )
 
     assert CompareModelsRequest.from_dict(request.to_dict()) == request
     assert CompareModelsResult.from_dict(result.to_dict()) == result
+
+
+def test_compare_models_request_defaults_include_r2_priority() -> None:
+    request = CompareModelsRequest(model_ids=["naive_zero"])
+
+    assert request.rank_by == ["mae", "rmse", "r2", "direction_accuracy"]
 
 
 def test_forecast_and_backtest_results_are_serializable() -> None:
