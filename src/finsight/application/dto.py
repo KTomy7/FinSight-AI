@@ -26,6 +26,15 @@ def _safe_int(value: Any, default: int) -> int:
         return default
 
 
+def _optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _string_tuple(value: Any, default: tuple[str, ...] = ()) -> tuple[str, ...]:
     if value is None:
         return default
@@ -502,6 +511,91 @@ class ForecastResult:
 
 
 @dataclass(frozen=True, slots=True)
+class BacktestRequest:
+    model_ids: list[str]
+    years: int = 2
+    end: str | None = None
+    interval: str | None = None
+    min_train_days: int = 252
+    test_window_days: int = 21
+    step_days: int = 21
+    max_folds: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "model_ids": list(self.model_ids),
+            "years": self.years,
+            "end": self.end,
+            "interval": self.interval,
+            "min_train_days": self.min_train_days,
+            "test_window_days": self.test_window_days,
+            "step_days": self.step_days,
+            "max_folds": self.max_folds,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> BacktestRequest:
+        raw_end = payload.get("end")
+        end = None if raw_end is None else str(raw_end).strip() or None
+
+        raw_interval = payload.get("interval")
+        interval = None if raw_interval is None else str(raw_interval).strip() or None
+
+        return cls(
+            model_ids=_string_list(payload.get("model_ids"), default=[]),
+            years=_safe_int(payload.get("years", 2), default=2),
+            end=end,
+            interval=interval,
+            min_train_days=_safe_int(payload.get("min_train_days", 252), default=252),
+            test_window_days=_safe_int(payload.get("test_window_days", 21), default=21),
+            step_days=_safe_int(payload.get("step_days", 21), default=21),
+            max_folds=_optional_int(payload.get("max_folds")),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestFoldSummary:
+    fold_index: int
+    train_start: str
+    train_end: str
+    test_start: str
+    test_end: str
+    n_train: int
+    n_test: int
+    metrics: dict[str, MetricValue]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "fold_index": self.fold_index,
+            "train_start": self.train_start,
+            "train_end": self.train_end,
+            "test_start": self.test_start,
+            "test_end": self.test_end,
+            "n_train": self.n_train,
+            "n_test": self.n_test,
+            "metrics": dict(self.metrics),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> BacktestFoldSummary:
+        metrics_raw = payload.get("metrics", {})
+        metrics: dict[str, MetricValue] = {}
+        if isinstance(metrics_raw, Mapping):
+            metrics = {str(key): value for key, value in metrics_raw.items()}
+
+        return cls(
+            fold_index=_safe_int(payload.get("fold_index", 0), default=0),
+            train_start=_safe_str(payload.get("train_start", "")).strip(),
+            train_end=_safe_str(payload.get("train_end", "")).strip(),
+            test_start=_safe_str(payload.get("test_start", "")).strip(),
+            test_end=_safe_str(payload.get("test_end", "")).strip(),
+            n_train=_safe_int(payload.get("n_train", 0), default=0),
+            n_test=_safe_int(payload.get("n_test", 0), default=0),
+            metrics=metrics,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class BacktestResult:
     model_id: str
     metrics: dict[str, MetricValue]
@@ -537,6 +631,39 @@ class BacktestResult:
             metrics=metrics,
             folds=folds,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestReport:
+    results: list[BacktestResult]
+    dataset_spec: DatasetSpec | None = None
+    split_spec: dict[str, SerializableScalar] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "results": [result.to_dict() for result in self.results],
+            "dataset_spec": None if self.dataset_spec is None else self.dataset_spec.to_dict(),
+            "split_spec": dict(self.split_spec),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> BacktestReport:
+        results_raw = payload.get("results", [])
+        results: list[BacktestResult] = []
+        if isinstance(results_raw, list):
+            for row in results_raw:
+                if isinstance(row, Mapping):
+                    results.append(BacktestResult.from_dict(row))
+
+        dataset_raw = payload.get("dataset_spec")
+        dataset_spec = DatasetSpec.from_dict(dataset_raw) if isinstance(dataset_raw, Mapping) else None
+
+        split_spec_raw = payload.get("split_spec", {})
+        split_spec: dict[str, SerializableScalar] = {}
+        if isinstance(split_spec_raw, Mapping):
+            split_spec = {str(key): value for key, value in split_spec_raw.items()}
+
+        return cls(results=results, dataset_spec=dataset_spec, split_spec=split_spec)
 
 
 @dataclass(frozen=True, slots=True)
@@ -596,6 +723,9 @@ class RegistrySnapshot:
 
 
 __all__ = [
+    "BacktestFoldSummary",
+    "BacktestReport",
+    "BacktestRequest",
     "CompareModelsRequest",
     "CompareModelsResult",
     "BacktestResult",

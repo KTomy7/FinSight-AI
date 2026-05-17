@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from finsight.application.dto import (
+    BacktestFoldSummary,
+    BacktestReport,
+    BacktestRequest,
     BacktestResult,
     CompareModelsRequest,
     CompareModelsResult,
@@ -133,6 +136,52 @@ def test_forecast_and_backtest_results_are_serializable() -> None:
 
     assert ForecastResult.from_dict(forecast_payload) == forecast
     assert BacktestResult.from_dict(backtest_payload) == backtest
+
+
+def test_backtest_request_roundtrip() -> None:
+    request = BacktestRequest(
+        model_ids=["naive_zero", "ridge"],
+        years=3,
+        end="2026-03-31",
+        interval="1d",
+        min_train_days=200,
+        test_window_days=30,
+        step_days=15,
+        max_folds=6,
+    )
+
+    assert BacktestRequest.from_dict(request.to_dict()) == request
+
+
+def test_backtest_report_roundtrip() -> None:
+    fold = BacktestFoldSummary(
+        fold_index=1,
+        train_start="2024-01-01",
+        train_end="2024-12-31",
+        test_start="2025-01-01",
+        test_end="2025-01-31",
+        n_train=252,
+        n_test=21,
+        metrics={"mae": 0.12, "rmse": 0.18},
+    )
+    report = BacktestReport(
+        results=[
+            BacktestResult(
+                model_id="ridge",
+                metrics={"mae": 0.11, "rmse": 0.17},
+                folds=[fold.to_dict()],
+            )
+        ],
+        dataset_spec=DatasetSpec(
+            tickers=("AAPL", "JPM"),
+            start_date="2024-01-01",
+            end_date="2026-03-31",
+            interval="1d",
+        ),
+        split_spec={"min_train_days": 252, "test_window_days": 21, "step_days": 21},
+    )
+
+    assert BacktestReport.from_dict(report.to_dict()) == report
 
 
 def test_train_model_result_is_constructible() -> None:
