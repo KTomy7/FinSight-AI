@@ -506,6 +506,14 @@ class TestTrainPresenter:
 
 
 class TestBacktestPresenter:
+    def test_format_model_metrics_frame_returns_empty_dataframe_for_empty_report(self) -> None:
+        report = BacktestReport(results=[])
+
+        frame = BacktestPresenter.format_model_metrics_frame(report, label_lookup={})
+
+        assert isinstance(frame, pd.DataFrame)
+        assert frame.empty
+
     def test_format_model_metrics_frame_applies_labels(self) -> None:
         report = BacktestReport(
             results=[
@@ -522,6 +530,32 @@ class TestBacktestPresenter:
         assert list(frame.columns) == ["model", "model_id", "fold_count", "mae", "rmse"]
         assert frame.iloc[0]["model"] == "Ridge Regression"
         assert frame.iloc[0]["model_id"] == "ridge"
+
+    def test_format_model_metrics_frame_falls_back_to_model_id_and_preserves_extra_metrics(self) -> None:
+        report = BacktestReport(
+            results=[
+                BacktestResult(
+                    model_id="naive_zero",
+                    metrics={"z_metric": 1.0, "mae": 0.1},
+                    folds=[],
+                )
+            ]
+        )
+
+        frame = BacktestPresenter.format_model_metrics_frame(report, label_lookup={})
+
+        assert list(frame.columns) == ["model", "model_id", "z_metric", "mae"]
+        assert frame.iloc[0]["model"] == "naive_zero"
+        assert frame.iloc[0]["model_id"] == "naive_zero"
+        assert frame.iloc[0]["z_metric"] == 1.0
+
+    def test_format_fold_frame_returns_empty_dataframe_for_empty_folds(self) -> None:
+        result = BacktestResult(model_id="ridge", metrics={"fold_count": 0}, folds=[])
+
+        frame = BacktestPresenter.format_fold_frame(result)
+
+        assert isinstance(frame, pd.DataFrame)
+        assert frame.empty
 
     def test_format_fold_frame_flattens_metrics(self) -> None:
         result = BacktestResult(
@@ -555,4 +589,30 @@ class TestBacktestPresenter:
         assert frame.iloc[0]["metric_mae"] == 0.12
         assert frame.iloc[0]["metric_rmse"] == 0.19
 
+    def test_format_fold_frame_treats_non_mapping_metrics_as_empty_and_sorts_remaining_columns(self) -> None:
+        result = BacktestResult(
+            model_id="ridge",
+            metrics={"fold_count": 1},
+            folds=cast(
+                list[application_dto.SerializableRow],
+                cast(
+                    object,
+                    [
+                        {
+                            "fold_index": 1,
+                            "n_test": 20,
+                            "z_extra": "last",
+                            "a_extra": "first",
+                            "metrics": None,
+                        }
+                    ],
+                ),
+            ),
+        )
+
+        frame = BacktestPresenter.format_fold_frame(result)
+
+        assert "metrics" not in frame.columns
+        assert list(frame.columns) == ["fold_index", "n_test", "a_extra", "z_extra"]
+        assert frame.iloc[0]["a_extra"] == "first"
 

@@ -34,6 +34,11 @@ class _StubFeatureStore:
         return self._feature_df.copy()
 
 
+class _NonDataFrameFeatureStore:
+    def build_feature_dataset(self, series_list: list[OHLCVSeries]) -> list[object]:
+        return list(series_list)
+
+
 class _StubModel:
     def __init__(self) -> None:
         self.calls: list[tuple[str, int, int]] = []
@@ -186,5 +191,144 @@ def test_backtest_rejects_unsupported_model_ids() -> None:
             )
         )
 
+
+def test_backtest_normalizes_training_tickers_and_uses_request_defaults() -> None:
+    fetch_stub = _StubFetchMarketData({"AAA": _make_series("AAA"), "BBB": _make_series("BBB")})
+    feature_store = _StubFeatureStore(_feature_frame())
+    use_case = Backtest(
+        fetch_market_data=cast(FetchMarketData, cast(object, fetch_stub)),
+        feature_store=cast(FeatureStorePort, cast(object, feature_store)),
+        model=cast(ModelPort, cast(object, _StubModel())),
+        training_tickers=(" aaa ", "bbb"),
+        default_interval="1wk",
+    )
+
+    report = use_case.execute(
+        application_dto.BacktestRequest(
+            model_ids=[" naive_zero "],
+            years=1,
+            end="2024-01-08",
+            interval=None,
+            min_train_days=4,
+            test_window_days=2,
+            step_days=2,
+            max_folds=1,
+        )
+    )
+
+    assert [call.ticker for call in fetch_stub.calls] == ["AAA", "BBB"]
+    assert {call.interval for call in fetch_stub.calls} == {"1wk"}
+    assert {call.include_summary for call in fetch_stub.calls} == {False}
+    assert report.dataset_spec is not None
+    assert report.dataset_spec.tickers == ("AAA", "BBB")
+    assert report.dataset_spec.start_date == "2023-01-09"
+    assert report.dataset_spec.end_date == "2024-01-08"
+    assert report.dataset_spec.interval == "1wk"
+    assert report.results[0].model_id == "naive_zero"
+    assert report.split_spec["max_folds"] == 1
+    assert report.split_spec["fold_count"] == 1
+
+
+@pytest.mark.parametrize(
+    ("model_ids", "message"),
+    [
+        ([], "model_ids must contain at least one model id"),
+        (["naive_zero", " naive_zero "], "model_ids must be unique"),
+        (["naive_zero", " "], "model_ids must not contain empty values"),
+    ],
+)
+def test_backtest_rejects_invalid_model_id_lists(model_ids: list[str], message: str) -> None:
+    fetch_stub = _StubFetchMarketData({"AAA": _make_series("AAA")})
+    use_case = Backtest(
+        fetch_market_data=cast(FetchMarketData, cast(object, fetch_stub)),
+        feature_store=cast(FeatureStorePort, cast(object, _StubFeatureStore(_feature_frame()))),
+        model=cast(ModelPort, cast(object, _StubModel())),
+        training_tickers=("AAA",),
+    )
+
+    with pytest.raises(ValueError, match=message):
+        use_case.execute(
+            application_dto.BacktestRequest(
+                model_ids=model_ids,
+                years=1,
+                end="2024-01-08",
+                min_train_days=4,
+                test_window_days=2,
+                step_days=2,
+            )
+        )
+
+
+def test_backtest_rejects_duplicate_configured_training_tickers() -> None:
+    use_case = Backtest(
+        fetch_market_data=cast(FetchMarketData, cast(object, _StubFetchMarketData({"AAA": _make_series("AAA")}))),
+        feature_store=cast(FeatureStorePort, cast(object, _StubFeatureStore(_feature_frame()))),
+        model=cast(ModelPort, cast(object, _StubModel())),
+        training_tickers=("AAA", " aaa "),
+    )
+
+    with pytest.raises(ValueError, match="Configured training tickers must not contain duplicates"):
+        use_case.execute(
+            application_dto.BacktestRequest(
+                model_ids=["naive_zero"],
+                years=1,
+                end="2024-01-08",
+                min_train_days=4,
+                test_window_days=2,
+                step_days=2,
+            )
+        )
+
+
+def test_backtest_rejects_non_dataframe_feature_dataset() -> None:
+    fetch_stub = _StubFetchMarketData({"AAA": _make_series("AAA")})
+    use_case = Backtest(
+        fetch_market_data=cast(FetchMarketData, cast(object, fetch_stub)),
+        feature_store=cast(FeatureStorePort, cast(object, _NonDataFrameFeatureStore())),
+        model=cast(ModelPort, cast(object, _StubModel())),
+        training_tickers=("AAA",),
+    )
+
+    with pytest.raises(TypeError, match="Feature store must return a pandas DataFrame"):
+        use_case.execute(
+            application_dto.BacktestRequest(
+                model_ids=["naive_zero"],
+                years=1,
+                end="2024-01-08",
+                min_train_days=4,
+                test_window_days=2,
+                step_days=2,
+            )
+        )
+
+
+def test_backtest_rejects_non_finite_fold_metrics() -> None:
+    class _NonFiniteMetricModel(_StubModel):
+        def evaluate(self, **_kwargs) -> ModelEvaluationResult:
+            return ModelEvaluationResult(
+                metrics={"mae": float("nan")},
+                predictions=pd.DataFrame(),
+                trained_artifact=object(),
+                model_metadata={"model_id": "naive_zero"},
+            )
+
+    use_case = Backtest(
+        fetch_market_data=cast(FetchMarketData, cast(object, _StubFetchMarketData({"AAA": _make_series("AAA")}))),
+        feature_store=cast(FeatureStorePort, cast(object, _StubFeatureStore(_feature_frame()))),
+        model=cast(ModelPort, cast(object, _NonFiniteMetricModel())),
+        training_tickers=("AAA",),
+    )
+
+    with pytest.raises(ValueError, match="must be finite"):
+        use_case.execute(
+            application_dto.BacktestRequest(
+                model_ids=["naive_zero"],
+                years=1,
+                end="2024-01-08",
+                min_train_days=4,
+                test_window_days=2,
+                step_days=2,
+            )
+        )
 
 
