@@ -22,7 +22,6 @@ def _compare_models_uc():
     return build_container().compare_models
 
 
-
 def render():
     st.title("Compare Models")
     st.markdown(
@@ -75,6 +74,7 @@ def render():
             CompareModelsRequest(
                 model_ids=list(selected_model_ids),
                 rank_by=list(selected_rank_by),
+                use_best_runs=True,
             )
         )
     except FileNotFoundError as error:
@@ -88,12 +88,16 @@ def render():
         return
 
     frame = ComparisonPresenter.format_leaderboard_frame(result, label_lookup=id_to_label)
+
     if frame.empty:
         st.warning("No comparison rows were returned.")
         return
 
     st.subheader("Leaderboard")
+
     st.dataframe(frame, use_container_width=True, hide_index=True)
+
+    st.caption("This leaderboard shows the current best recorded run for each selected model when available.")
 
     st.caption(
         "Ranking priority: "

@@ -353,6 +353,7 @@ class CompareModelsRequest:
     artifacts_dir: str = "artifacts/runs"
     rank_by: list[str] = field(default_factory=lambda: [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY])
     metric_directions: dict[str, str] = field(default_factory=dict)
+    use_best_runs: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -360,6 +361,7 @@ class CompareModelsRequest:
             "artifacts_dir": self.artifacts_dir,
             "rank_by": list(self.rank_by),
             "metric_directions": dict(self.metric_directions),
+            "use_best_runs": self.use_best_runs,
         }
 
     @classmethod
@@ -367,6 +369,7 @@ class CompareModelsRequest:
         raw_model_ids = payload.get("model_ids", [])
         raw_rank_by = payload.get("rank_by")
         raw_metric_directions = payload.get("metric_directions", {})
+        raw_use_best_runs = payload.get("use_best_runs", False)
 
         model_ids = _string_list(raw_model_ids, default=[])
         if isinstance(raw_rank_by, (list, tuple)):
@@ -382,6 +385,13 @@ class CompareModelsRequest:
                 if str(value).strip()
             }
 
+        if isinstance(raw_use_best_runs, bool):
+            use_best_runs = raw_use_best_runs
+        elif isinstance(raw_use_best_runs, str):
+            use_best_runs = raw_use_best_runs.strip().casefold() in {"true", "1", "yes", "y", "on"}
+        else:
+            use_best_runs = bool(raw_use_best_runs)
+
         raw_artifacts_dir = payload.get("artifacts_dir")
         if raw_artifacts_dir is None:
             artifacts_dir = "artifacts/runs"
@@ -396,6 +406,7 @@ class CompareModelsRequest:
             artifacts_dir=artifacts_dir,
             rank_by=rank_by,
             metric_directions=metric_directions,
+            use_best_runs=use_best_runs,
         )
 
 
@@ -568,6 +579,22 @@ class ForecastRequest:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class RunSummary:
+    """Summary of a completed training run for registry recording."""
+    run_id: str
+    model_id: str
+    created_at: str  # ISO 8601 timestamp
+    metrics: dict[str, float]  # e.g., {"mae": 0.123, "rmse": 0.45, ...}
+
+
+@dataclass(frozen=True, slots=True)
+class RegistrySnapshot:
+    """In-memory representation of the run registry file."""
+    updated_at: str  # ISO 8601 timestamp
+    best_by_model: dict[str, dict[str, Any]]  # model_id -> {run_id, metrics, created_at}
+
+
 __all__ = [
     "CompareModelsRequest",
     "CompareModelsResult",
@@ -581,6 +608,8 @@ __all__ = [
     "MetricValue",
     "ModelComparisonRow",
     "ModelRunArtifacts",
+    "RegistrySnapshot",
+    "RunSummary",
     "TrainModelRequest",
     "TrainModelResult",
 ]

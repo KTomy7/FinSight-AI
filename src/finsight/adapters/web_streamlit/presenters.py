@@ -137,6 +137,74 @@ class ComparisonPresenter:
         ]
         return frame[base_columns + metric_columns + sorted(remaining_columns)]
 
+    @staticmethod
+    def format_leaderboard_with_best_runs(
+        result: application_dto.CompareModelsResult,
+        *,
+        label_lookup: Mapping[str, str],
+        registry_snapshot: application_dto.RegistrySnapshot | None = None,
+    ) -> pd.DataFrame:
+        """
+        Convert comparison result into a formatted leaderboard DataFrame,
+        enriched with registry best-run metadata.
+
+        Adds columns:
+        - is_best_run: boolean indicating if this run is the best for its model
+        - best_run_since: ISO 8601 timestamp when this became the best (or None)
+
+        Args:
+            result: CompareModelsResult from the CompareModels use case.
+            label_lookup: Mapping from model_id to human-readable label.
+            registry_snapshot: Optional RegistrySnapshot with best-run metadata.
+                             If None, is_best_run column will be all False.
+
+        Returns:
+            Formatted DataFrame with registry-aware columns, or empty DataFrame if no rows.
+        """
+        if not result.rows:
+            return pd.DataFrame()
+
+        rows: list[dict[str, object]] = []
+        for row in result.rows:
+            record: dict[str, object] = {
+                "rank": row.rank,
+                "model": label_lookup.get(row.model_id, row.model_id),
+                "model_id": row.model_id,
+                "run_id": row.run_id,
+            }
+            record.update(row.metrics)
+
+            # Enrich with registry metadata
+            is_best = False
+            best_run_since = None
+
+            if registry_snapshot and registry_snapshot.best_by_model:
+                best_entry = registry_snapshot.best_by_model.get(row.model_id)
+                if best_entry and isinstance(best_entry, dict):
+                    if best_entry.get("run_id") == row.run_id:
+                        is_best = True
+                        best_run_since = best_entry.get("created_at")
+
+            record["is_best_run"] = is_best
+            record["best_run_since"] = best_run_since
+
+            rows.append(record)
+
+        frame = pd.DataFrame(rows)
+        if frame.empty:
+            return frame
+
+        # Reorder columns: rank, model, model_id, run_id, is_best_run, best_run_since,
+        #                  ranking metrics, then others
+        base_columns = ["rank", "model", "model_id", "run_id", "is_best_run", "best_run_since"]
+        metric_columns = [column for column in result.rank_by if column in frame.columns]
+        remaining_columns = [
+            column
+            for column in frame.columns
+            if column not in base_columns and column not in metric_columns
+        ]
+        return frame[base_columns + metric_columns + sorted(remaining_columns)]
+
 
 class TrainPresenter:
     """Converts TrainModelResult and run artifacts into display-ready frames.
@@ -285,5 +353,4 @@ class TrainPresenter:
 
 
 __all__ = ["ForecastPresenter", "ComparisonPresenter", "TrainPresenter"]
-
 
