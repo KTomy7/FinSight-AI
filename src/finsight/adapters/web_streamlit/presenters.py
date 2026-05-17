@@ -287,7 +287,7 @@ class TrainPresenter:
         history_dates = sorted(history_map.keys())
 
         for idx, row in working.reset_index(drop=True).iterrows():
-            row_idx = int(idx)
+            row_idx = idx
             input_dt = row["date"].date()
             y_pred = _as_float(row.get("y_pred"))
             if y_pred is None:

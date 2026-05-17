@@ -211,8 +211,9 @@ def render() -> None:
             # Fetch market history once per ticker (reuse for all models)
             if market_history_df.empty and start_date and end_date:
                 try:
+                    interval = manifest.get("params", {}).get("interval", "1d") if manifest else "1d"
                     market_data = container.fetch_market_data.execute(
-                        FetchMarketDataRequest(ticker=ticker, start_date=start_date, end_date=end_date, interval=manifest.get("params", {}).get("interval", "1d") if manifest else "1d", include_summary=False)
+                        FetchMarketDataRequest(ticker=ticker, start_date=start_date, end_date=end_date, interval=interval, include_summary=False)
                     )
                     market_history_df = market_data.history.df.copy()
                 except Exception:
