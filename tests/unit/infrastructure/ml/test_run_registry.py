@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
 from finsight.application.dto import RunSummary
+from finsight.domain.metrics import METRIC_MAE, METRIC_R2
 from finsight.infrastructure.ml.run_registry import LocalFileRunRegistry
 
 
@@ -130,6 +130,37 @@ class TestLocalFileRunRegistry:
 
         assert data["best_ridge"]["run_id"] == "2026-05-16T120000Z__ridge"
         assert data["best_ridge"]["metrics"]["mae"] == 0.100
+
+    def test_record_completed_run_uses_r2_as_secondary_priority(self, temp_artifact_dir: str) -> None:
+        """When MAE is tied, the better R² score should win."""
+        Path(temp_artifact_dir).mkdir(parents=True, exist_ok=True)
+
+        initial_data = {
+            "updated_at": "2026-05-16T110000Z",
+            "best_ridge": {
+                "run_id": "2026-05-16T110000Z__ridge",
+                "created_at": "2026-05-16T11:00:00Z",
+                "metrics": {METRIC_MAE: 0.100, METRIC_R2: 0.50},
+            },
+        }
+        registry_path = Path(temp_artifact_dir) / "registry.json"
+        registry_path.write_text(json.dumps(initial_data))
+
+        registry = LocalFileRunRegistry()
+        new_run = RunSummary(
+            run_id="2026-05-16T120000Z__ridge",
+            model_id="ridge",
+            created_at="2026-05-16T12:00:00Z",
+            metrics={METRIC_MAE: 0.100, METRIC_R2: 0.70},
+        )
+
+        registry.record_completed_run(artifact_root=temp_artifact_dir, run_summary=new_run)
+
+        with registry_path.open("r") as f:
+            data = json.load(f)
+
+        assert data["best_ridge"]["run_id"] == "2026-05-16T120000Z__ridge"
+        assert data["best_ridge"]["metrics"][METRIC_R2] == 0.70
 
     def test_record_completed_run_worse_run_does_not_update(self, temp_artifact_dir: str) -> None:
         """When new run is worse, registry is not updated."""

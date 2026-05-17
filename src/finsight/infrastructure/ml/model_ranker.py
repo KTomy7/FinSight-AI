@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Mapping
+from typing import Any
 
-from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_R2, METRIC_RMSE
 
 
 # Default metric directions: asc = lower is better, desc = higher is better
 _DEFAULT_DIRECTION_BY_METRIC = {
     METRIC_MAE: "asc",
     METRIC_RMSE: "asc",
+    METRIC_R2: "desc",
     METRIC_DIRECTION_ACCURACY: "desc",
 }
 

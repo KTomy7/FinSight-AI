@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from typing import cast
 
-from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_R2, METRIC_RMSE
 from finsight.infrastructure.ml.model_ranker import ModelRanker
 
 
@@ -62,6 +63,10 @@ class TestGetDirection:
         ranker = ModelRanker(rank_by=[METRIC_DIRECTION_ACCURACY])
         assert ranker.get_direction(METRIC_DIRECTION_ACCURACY) == "desc"
 
+    def test_get_direction_returns_default_for_r2(self) -> None:
+        ranker = ModelRanker(rank_by=[METRIC_R2])
+        assert ranker.get_direction(METRIC_R2) == "desc"
+
     def test_get_direction_defaults_to_asc_for_unknown_metric(self) -> None:
         ranker = ModelRanker(rank_by=["unknown_metric"])
         assert ranker.get_direction("unknown_metric") == "asc"
@@ -115,6 +120,12 @@ class TestIsBetter:
         ranker = ModelRanker(rank_by=[METRIC_DIRECTION_ACCURACY])
         new_metrics = {METRIC_DIRECTION_ACCURACY: 0.90}
         current_metrics = {METRIC_DIRECTION_ACCURACY: 0.80}
+        assert ranker.is_better(new_metrics, current_metrics) is True
+
+    def test_is_better_with_higher_r2(self) -> None:
+        ranker = ModelRanker(rank_by=[METRIC_R2])
+        new_metrics = {METRIC_R2: 0.92}
+        current_metrics = {METRIC_R2: 0.89}
         assert ranker.is_better(new_metrics, current_metrics) is True
 
     def test_is_better_with_lower_direction_accuracy_is_false(self) -> None:
@@ -180,6 +191,12 @@ class TestComputeSortKey:
         # For descending, metric gets negated
         assert sort_key[0] == -0.85
 
+    def test_compute_sort_key_normalizes_r2_as_descending(self) -> None:
+        ranker = ModelRanker(rank_by=[METRIC_R2])
+        metrics = {METRIC_R2: 0.91}
+        sort_key = ranker.compute_sort_key(metrics, model_id="test", run_id="run")
+        assert sort_key[0] == -0.91
+
     def test_compute_sort_key_with_multiple_metrics(self) -> None:
         ranker = ModelRanker(rank_by=[METRIC_MAE, METRIC_RMSE])
         metrics = {METRIC_MAE: 0.10, METRIC_RMSE: 0.20}
@@ -196,8 +213,8 @@ class TestComputeSortKey:
 
     def test_compute_sort_key_coerces_numeric_strings(self) -> None:
         ranker = ModelRanker(rank_by=[METRIC_MAE])
-        metrics = {METRIC_MAE: "0.123"}
-        sort_key = ranker.compute_sort_key(metrics, model_id="test", run_id="run")
+        metrics: dict[str, float | str] = {METRIC_MAE: "0.123"}
+        sort_key = ranker.compute_sort_key(cast(dict[str, float], metrics), model_id="test", run_id="run")
         assert sort_key[0] == 0.123
 
 

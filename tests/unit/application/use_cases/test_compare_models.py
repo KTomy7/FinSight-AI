@@ -6,7 +6,7 @@ import pytest
 
 from finsight.application.dto import CompareModelsRequest, ModelRunArtifacts, RegistrySnapshot
 from finsight.application.use_cases.compare_models import CompareModels
-from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_R2, METRIC_RMSE
 from finsight.domain.ports import ModelRegistryPort, RunRegistryPort
 
 
@@ -113,6 +113,31 @@ def test_compare_models_ranks_by_multiple_metrics_with_expected_direction() -> N
         ("artifacts/runs", "2026-04-11T120000Z__alpha"),
         ("artifacts/runs", "2026-04-12T120000Z__beta"),
     ]
+
+
+def test_compare_models_ranks_by_r2_in_descending_order() -> None:
+    registry = _StubRegistry(
+        artifacts_by_model_id={
+            "alpha": _make_model_run_artifacts(
+                model_id="alpha",
+                run_id="2026-04-11T120000Z__alpha",
+                metrics={METRIC_MAE: 0.10, METRIC_RMSE: 0.22, METRIC_R2: 0.81},
+            ),
+            "beta": _make_model_run_artifacts(
+                model_id="beta",
+                run_id="2026-04-12T120000Z__beta",
+                metrics={METRIC_MAE: 0.10, METRIC_RMSE: 0.22, METRIC_R2: 0.90},
+            ),
+        }
+    )
+
+    result = CompareModels(model_registry=registry).execute(
+        CompareModelsRequest(model_ids=["alpha", "beta"], rank_by=[METRIC_R2])
+    )
+
+    assert [row.model_id for row in result.rows] == ["beta", "alpha"]
+    assert result.rank_by == [METRIC_R2]
+    assert result.metric_directions == {METRIC_R2: "desc"}
 
 
 def test_compare_models_uses_model_id_as_deterministic_tie_break() -> None:

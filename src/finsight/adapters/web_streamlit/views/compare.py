@@ -6,13 +6,14 @@ from finsight.application.dto import CompareModelsRequest
 from finsight.adapters.web_streamlit.presenters import ComparisonPresenter
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
-from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_R2, METRIC_RMSE
 
 
 _SETTINGS = get_settings()
 _METRIC_LABELS = {
     METRIC_MAE: "Mean Absolute Error (lower is better)",
     METRIC_RMSE: "Root Mean Squared Error (lower is better)",
+    METRIC_R2: "R² Score (higher is better)",
     METRIC_DIRECTION_ACCURACY: "Direction Accuracy (higher is better)",
 }
 
@@ -28,8 +29,8 @@ def render():
         "Build a deterministic leaderboard from the latest saved model runs. "
         "Ranking follows a fixed metric priority among the metrics you select, then model ID, then run ID.")
     st.info(
-        "Metric direction defaults: MAE/RMSE are ranked lower-is-better, while Direction Accuracy is ranked higher-is-better. "
-        "Use Ranking metrics to include or exclude metrics. Priority remains MAE -> RMSE -> Direction Accuracy."
+        "Metric direction defaults: MAE/RMSE are ranked lower-is-better, while R² and Direction Accuracy are ranked higher-is-better. "
+        "Use Ranking metrics to include or exclude metrics. Default priority is MAE -> RMSE -> R² -> Direction Accuracy."
     )
 
     model_defaults = _SETTINGS.model_defaults
@@ -40,7 +41,8 @@ def render():
         st.warning("No training-enabled models are configured.")
         return
 
-    default_rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY]
+    ranking_metrics = [METRIC_MAE, METRIC_RMSE, METRIC_R2, METRIC_DIRECTION_ACCURACY]
+    default_rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_R2, METRIC_DIRECTION_ACCURACY]
 
     with st.form("compare_models_form"):
         selected_model_ids = st.multiselect(
@@ -51,7 +53,7 @@ def render():
         )
         selected_rank_by = st.multiselect(
             "Ranking metrics",
-            default_rank_by,
+            ranking_metrics,
             default=default_rank_by,
             format_func=lambda metric_name: _METRIC_LABELS.get(metric_name, metric_name),
         )

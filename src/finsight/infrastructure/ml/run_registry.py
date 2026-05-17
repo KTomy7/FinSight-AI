@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from finsight.application.dto import RegistrySnapshot, RunSummary
+from finsight.domain.metrics import METRIC_MAE, METRIC_R2
 from finsight.domain.ports import RunRegistryPort
 from finsight.infrastructure.ml.model_ranker import ModelRanker
 
@@ -29,6 +30,7 @@ class LocalFileRunRegistry(RunRegistryPort):
     """
 
     REGISTRY_FILENAME = "registry.json"
+    _REGISTRY_PRIORITY_METRICS = (METRIC_MAE, METRIC_R2)
 
     def __init__(self, *, supported_model_ids: tuple[str, ...] | None = None) -> None:
         """
@@ -77,7 +79,7 @@ class LocalFileRunRegistry(RunRegistryPort):
         Record a completed training run.
 
         Loads current registry, compares new run against current best for that model,
-        updates if new is better (by MAE metric), and saves registry atomically.
+        updates if new is better (by MAE, then R² when available), and saves registry atomically.
         """
         model_id = run_summary.model_id
         artifact_root_path = Path(artifact_root)
@@ -104,18 +106,25 @@ class LocalFileRunRegistry(RunRegistryPort):
         should_update = True
 
         if current_best is not None and isinstance(current_best, dict):
-            # Compare using MAE metric (primary ranking metric)
-            ranker = ModelRanker(
-                rank_by=["mae"],
-                metric_directions={"mae": "asc"},
-            )
-
             new_metrics = run_summary.metrics
             current_metrics = current_best.get("metrics", {})
 
-            # is_better returns False if any metric is missing
-            if not ranker.is_better(new_metrics, current_metrics):
+            rank_by = [
+                metric_name
+                for metric_name in self._REGISTRY_PRIORITY_METRICS
+                if metric_name in new_metrics and metric_name in current_metrics
+            ]
+
+            if not rank_by:
                 should_update = False
+            else:
+                ranker = ModelRanker(
+                    rank_by=rank_by,
+                    metric_directions={METRIC_MAE: "asc", METRIC_R2: "desc"},
+                )
+
+                if not ranker.is_better(new_metrics, current_metrics):
+                    should_update = False
 
         # Update best run for this model if new is better
         if should_update:
