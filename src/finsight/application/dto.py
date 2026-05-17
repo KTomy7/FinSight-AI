@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from finsight.domain.entities import OHLCVSeries, StockSummary
-from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_R2, METRIC_RMSE
 
 MetricValue = float | int | str
 SerializableScalar = str | int | float | bool | None
@@ -360,7 +360,7 @@ class ModelComparisonRow:
 class CompareModelsRequest:
     model_ids: list[str]
     artifacts_dir: str = "artifacts/runs"
-    rank_by: list[str] = field(default_factory=lambda: [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY])
+    rank_by: list[str] = field(default_factory=lambda: [METRIC_MAE, METRIC_RMSE, METRIC_R2, METRIC_DIRECTION_ACCURACY])
     metric_directions: dict[str, str] = field(default_factory=dict)
     use_best_runs: bool = False
 
@@ -384,7 +384,7 @@ class CompareModelsRequest:
         if isinstance(raw_rank_by, (list, tuple)):
             rank_by = [str(item) for item in raw_rank_by]
         else:
-            rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY]
+            rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_R2, METRIC_DIRECTION_ACCURACY]
 
         metric_directions: dict[str, str] = {}
         if isinstance(raw_metric_directions, Mapping):
@@ -445,7 +445,7 @@ class CompareModelsResult:
         if isinstance(raw_rank_by, (list, tuple)):
             rank_by = [str(item) for item in raw_rank_by]
         else:
-            rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY]
+            rank_by = [METRIC_MAE, METRIC_RMSE, METRIC_R2, METRIC_DIRECTION_ACCURACY]
 
         raw_metric_directions = payload.get("metric_directions", {})
         metric_directions: dict[str, str] = {}

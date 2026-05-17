@@ -9,7 +9,7 @@ import pandas as pd
 from finsight.application.dto import CompareModelsRequest, ForecastRequest, TrainModelRequest
 from finsight.bootstrap.container import build_container
 from finsight.config.settings import get_settings
-from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_RMSE
+from finsight.domain.metrics import METRIC_DIRECTION_ACCURACY, METRIC_MAE, METRIC_R2, METRIC_RMSE
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -52,10 +52,10 @@ def _build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument(
         "--rank-by",
         nargs="+",
-        default=[METRIC_MAE, METRIC_RMSE, METRIC_DIRECTION_ACCURACY],
+        default=[METRIC_MAE, METRIC_RMSE, METRIC_R2, METRIC_DIRECTION_ACCURACY],
         help=(
             "Ordered comparison metrics used for ranking "
-            f"(defaults: {METRIC_MAE}, {METRIC_RMSE}, {METRIC_DIRECTION_ACCURACY})"
+            f"(defaults: {METRIC_MAE}, {METRIC_RMSE}, {METRIC_R2}, {METRIC_DIRECTION_ACCURACY})"
         ),
     )
     compare_parser.add_argument(
@@ -118,6 +118,7 @@ def _run_train(args: argparse.Namespace) -> int:
             "  "
             f"MAE={float(model_metrics[METRIC_MAE]):.6f} "
             f"RMSE={float(model_metrics[METRIC_RMSE]):.6f} "
+            f"R2={float(model_metrics[METRIC_R2]):.6f} "
             f"DirectionAcc={float(model_metrics[METRIC_DIRECTION_ACCURACY]):.4f}"
         )
 
