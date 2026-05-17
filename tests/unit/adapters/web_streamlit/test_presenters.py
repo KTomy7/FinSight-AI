@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+from typing import cast
 
-from finsight.adapters.web_streamlit.presenters import ComparisonPresenter, ForecastPresenter, TrainPresenter
-from finsight.application.dto import CompareModelsResult, ForecastResult, ModelComparisonRow, TrainModelResult
+from finsight.adapters.web_streamlit.presenters import BacktestPresenter, ComparisonPresenter, ForecastPresenter, TrainPresenter
+from finsight.application.dto import BacktestReport, BacktestResult, CompareModelsResult, ForecastResult, ModelComparisonRow, TrainModelResult
+import finsight.application.dto as application_dto
 
 
 class TestForecastPresenter:
@@ -501,5 +503,56 @@ class TestTrainPresenter:
         assert frame.iloc[0]["base_close"] == 100.0
         assert frame.iloc[0]["pred_next_close"] == pytest.approx(102.0)
         assert frame.iloc[0]["actual_next_close"] == pytest.approx(101.0)
+
+
+class TestBacktestPresenter:
+    def test_format_model_metrics_frame_applies_labels(self) -> None:
+        report = BacktestReport(
+            results=[
+                BacktestResult(
+                    model_id="ridge",
+                    metrics={"fold_count": 2, "mae": 0.1, "rmse": 0.2},
+                    folds=[],
+                )
+            ]
+        )
+
+        frame = BacktestPresenter.format_model_metrics_frame(report, label_lookup={"ridge": "Ridge Regression"})
+
+        assert list(frame.columns) == ["model", "model_id", "fold_count", "mae", "rmse"]
+        assert frame.iloc[0]["model"] == "Ridge Regression"
+        assert frame.iloc[0]["model_id"] == "ridge"
+
+    def test_format_fold_frame_flattens_metrics(self) -> None:
+        result = BacktestResult(
+            model_id="ridge",
+            metrics={"fold_count": 1, "mae": 0.1},
+            folds=cast(
+                list[application_dto.SerializableRow],
+                cast(
+                    object,
+                [
+                    {
+                        "fold_index": 1,
+                        "train_start": "2024-01-01",
+                        "train_end": "2024-06-01",
+                        "test_start": "2024-06-02",
+                        "test_end": "2024-07-01",
+                        "n_train": 120,
+                        "n_test": 20,
+                        "metrics": {"mae": 0.12, "rmse": 0.19},
+                    }
+                ],
+                ),
+            ),
+        )
+
+        frame = BacktestPresenter.format_fold_frame(result)
+
+        assert len(frame) == 1
+        assert "metrics" not in frame.columns
+        assert frame.iloc[0]["fold_index"] == 1
+        assert frame.iloc[0]["metric_mae"] == 0.12
+        assert frame.iloc[0]["metric_rmse"] == 0.19
 
 

@@ -287,6 +287,7 @@ class TrainPresenter:
         history_dates = sorted(history_map.keys())
 
         for idx, row in working.reset_index(drop=True).iterrows():
+            row_idx = int(idx)
             input_dt = row["date"].date()
             y_pred = _as_float(row.get("y_pred"))
             if y_pred is None:
@@ -309,8 +310,8 @@ class TrainPresenter:
             # Determine next_date: prefer next prediction row date, else first available history date after input
             next_date_dt = None
             # prefer next row in predictions (same ticker) if it exists
-            if idx + 1 < len(working):
-                next_row_dt = working.loc[idx + 1, "date"]
+            if row_idx + 1 < len(working):
+                next_row_dt = working.loc[row_idx + 1, "date"]
                 if pd.notna(next_row_dt):
                     next_date_dt = next_row_dt.date()
 
@@ -352,5 +353,60 @@ class TrainPresenter:
         return pd.DataFrame(rows)
 
 
-__all__ = ["ForecastPresenter", "ComparisonPresenter", "TrainPresenter"]
+class BacktestPresenter:
+    """Converts BacktestReport into display-ready frames."""
+
+    @staticmethod
+    def format_model_metrics_frame(
+        report: application_dto.BacktestReport,
+        *,
+        label_lookup: Mapping[str, str],
+    ) -> pd.DataFrame:
+        if not report.results:
+            return pd.DataFrame()
+
+        rows: list[dict[str, object]] = []
+        for result in report.results:
+            row: dict[str, object] = {
+                "model": label_lookup.get(result.model_id, result.model_id),
+                "model_id": result.model_id,
+            }
+            row.update(result.metrics)
+            rows.append(row)
+
+        frame = pd.DataFrame(rows)
+        if frame.empty:
+            return frame
+        cols = [c for c in ["model", "model_id"] if c in frame.columns] + [c for c in frame.columns if c not in ("model", "model_id")]
+        return frame[cols]
+
+    @staticmethod
+    def format_fold_frame(result: application_dto.BacktestResult) -> pd.DataFrame:
+        if not result.folds:
+            return pd.DataFrame()
+
+        frame = pd.DataFrame(result.folds)
+        if frame.empty:
+            return frame
+
+        if "metrics" in frame.columns:
+            metrics_frame = frame["metrics"].apply(lambda val: val if isinstance(val, dict) else {}).apply(pd.Series)
+            metrics_frame = metrics_frame.add_prefix("metric_")
+            frame = pd.concat([frame.drop(columns=["metrics"]), metrics_frame], axis=1)
+
+        preferred = [
+            "fold_index",
+            "train_start",
+            "train_end",
+            "test_start",
+            "test_end",
+            "n_train",
+            "n_test",
+        ]
+        ordered = [col for col in preferred if col in frame.columns]
+        remaining = [col for col in frame.columns if col not in ordered]
+        return frame[ordered + sorted(remaining)]
+
+
+__all__ = ["ForecastPresenter", "ComparisonPresenter", "TrainPresenter", "BacktestPresenter"]
 

@@ -57,7 +57,7 @@ def render() -> None:
         format_func=lambda symbol: ticker_label_lookup.get(symbol, symbol),
     )
 
-    with st.form("train_backtest_form"):
+    with st.form("train_model_form"):
         st.info(f"Training configuration (fixed):\n- Cutoff date: {default_cutoff}\n- Lookback window: {_DEFAULT_YEARS} years\n- Training tickers: {', '.join(all_tickers)}")
 
         # Model selection
@@ -68,7 +68,7 @@ def render() -> None:
             format_func=lambda model_id: model_id_to_label.get(model_id, model_id),
         )
 
-        submit = st.form_submit_button("Run training & backtest")
+        submit = st.form_submit_button("Run training")
 
     # If form submitted, run training and cache results in session_state
     if submit:
@@ -90,7 +90,7 @@ def render() -> None:
         )
 
         try:
-            with st.spinner("Running training and backtests (this may take a while)..."):
+            with st.spinner("Running training (this may take a while)..."):
                 result = container.train_model.execute(request)
         except Exception as exc:
             st.error(f"Training failed: {exc}")
@@ -106,7 +106,7 @@ def render() -> None:
 
     # If no cached results yet, show info and return
     if "train_result" not in st.session_state:
-        st.info("Configure training options and submit to run backtest.")
+        st.info("Configure training options and submit to run training.")
         return
 
     # Use cached results; ticker selection is always live from the widget above
@@ -149,7 +149,7 @@ def render() -> None:
         st.stop()
 
     # Build combined backtest data per ticker across all models
-    st.subheader("Backtest results by ticker")
+    st.subheader("Evaluation results by ticker")
 
     # Model filter: allow user to toggle models on/off
     st.markdown("**Select models to display:**")
@@ -168,7 +168,7 @@ def render() -> None:
     for ticker in selected_tickers:
         st.markdown(f"#### {ticker}")
 
-        # Collect backtest data for all selected models for this ticker
+        # Collect evaluation data for all selected models for this ticker
         combined_backtest_data: dict[str, pd.DataFrame] = {}
         market_history_df = pd.DataFrame()
 
@@ -226,11 +226,11 @@ def render() -> None:
                 if not backtest_frame.empty:
                     combined_backtest_data[model_id] = backtest_frame
             except Exception as exc:
-                st.warning(f"Could not assemble backtest for {ticker} with {label_lookup.get(model_id, model_id)}: {exc}")
+                st.warning(f"Could not assemble results for {ticker} with {label_lookup.get(model_id, model_id)}: {exc}")
                 continue
 
         if not combined_backtest_data:
-            st.info(f"No backtest data for {ticker}.")
+            st.info(f"No evaluation data for {ticker}.")
             continue
 
         # Build combined chart data: align all models on next_date
@@ -298,5 +298,4 @@ def render() -> None:
             st.dataframe(comparison_df, use_container_width=True, hide_index=True)
 
         st.markdown("---")
-
 
