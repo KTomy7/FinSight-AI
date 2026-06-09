@@ -353,7 +353,7 @@ There is also a backward-compatibility alias:
 
 | Use case | Used by page(s) | Main responsibility | Main dependencies |
 |---|---|---|---|
-| `FetchMarketData` | indirectly by `Predict`, `Backtest`, `Train Model`; directly inside `Train Model` view for chart reconstruction | Fetch OHLCV history and optional stock summary | `MarketDataPort` |
+| `FetchMarketData` | directly by `Market Data`; indirectly by `Predict`, `Backtest`, `Train Model`; directly inside `Train Model` view for chart reconstruction | Fetch OHLCV history and optional stock summary | `MarketDataPort` |
 | `TrainModel` | `Train Model` | Train selected models on a fixed ticker basket, save artifacts, register the run | `FetchMarketData`, `FeatureStorePort`, `ModelPort`, `ModelRegistryPort`, `RunRegistryPort` |
 | `Backtest` | `Backtest` | Evaluate models across walk-forward folds | `FetchMarketData`, `FeatureStorePort`, `ModelPort`, `WalkForwardSplitPolicy` |
 | `CompareModels` | `Compare Models` | Load saved runs and produce a ranked leaderboard | `ModelRegistryPort`, `RunRegistryPort`, `ModelRanker` |
