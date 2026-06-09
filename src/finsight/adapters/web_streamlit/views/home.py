@@ -13,15 +13,15 @@ def render():
     st.markdown(
         """
         **FinSight AI** is a smart, AI-powered stock market analysis tool built to help you gain insight into market movements,
-        evaluate model performance, and manage your personal stock portfolio - all from a clean, intuitive interface.
+        evaluate model performance, and predict - all from a clean, intuitive interface.
         """
     )
 
-    banner_path = ASSETS_PATH / "banner.jpg"
-    if banner_path.exists():
-        st.image(str(banner_path), use_container_width=True)
-    else:
-        st.warning(f"Banner image not found. Please ensure 'banner.jpg' is present at: {banner_path}")
+    #banner_path = ASSETS_PATH / "banner.jpg"
+    #if banner_path.exists():
+    #    st.image(str(banner_path), use_container_width=True)
+    #else:
+    #    st.warning(f"Banner image not found. Please ensure 'banner.jpg' is present at: {banner_path}")
 
     st.markdown("---")
     st.markdown("### What can you do with FinSight AI?")
@@ -42,8 +42,6 @@ def render():
         - **Clean Web Interface**  
           Navigate between tools using a modern sidebar and responsive layout.
 
-        - **User Portfolio Tracking**  
-          Track a sample portfolio with visual feedback on gains/losses and projected returns.
         """
     )
 
@@ -51,13 +49,13 @@ def render():
     st.markdown("### Technologies Behind the Scenes")
     st.markdown(
         """
-        - **Python** with **Streamlit**
-        - **Machine Learning**: scikit-learn, pandas, yfinance
-        - **Data Visualization**: matplotlib, seaborn, Altair
-        - **APIs**: Yahoo Finance
+        - **App Framework**: Python with **Streamlit**
+        - **Data Processing**: `pandas`, `numpy`
+        - **Machine Learning**: `scikit-learn`, `xgboost`
+        - **Model Persistence**: `joblib`
+        - **Configuration**: `PyYAML`
+        - **Market Data**: Yahoo Finance via `yfinance`
         """
     )
 
     st.markdown("---")
-    st.info("Tip: Head over to the *Predict* tab to start analyzing stock performance!")
-

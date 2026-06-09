@@ -408,5 +408,95 @@ class BacktestPresenter:
         return frame[ordered + sorted(remaining)]
 
 
-__all__ = ["ForecastPresenter", "ComparisonPresenter", "TrainPresenter", "BacktestPresenter"]
+class MarketDataPresenter:
+    """Converts market data entities into display-ready formats for market data visualization."""
 
+    @staticmethod
+    def format_summary_metrics(summary: Any | None) -> dict[str, str | float | None]:
+        """
+        Extract key metrics from StockSummary for display.
+
+        Returns a dictionary of metrics safe for display, with "N/A" as fallback.
+
+        Args:
+            summary: StockSummary domain entity or None.
+
+        Returns:
+            Dictionary with keys: current_price, previous_close, market_cap, pe_ratio,
+            fifty_two_week_high, fifty_two_week_low, volume, avg_volume,
+            sector, industry, dividend_yield.
+        """
+        if summary is None or summary.data is None:
+            return {}
+
+        data = summary.data
+
+        def _safe_float(value: Any) -> float | str:
+            """Convert value to float, or return N/A if not possible."""
+            if value is None or value == "N/A":
+                return "N/A"
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return "N/A"
+
+        return {
+            "ticker": str(summary.ticker),
+            "name": data.get("name", "N/A"),
+            "sector": data.get("sector", "N/A"),
+            "industry": data.get("industry", "N/A"),
+            "current_price": _safe_float(data.get("current_price")),
+            "previous_close": _safe_float(data.get("previous_close")),
+            "market_cap": data.get("market_cap", "N/A"),  # Often returned as int; display as-is
+            "pe_ratio": _safe_float(data.get("pe_ratio")),
+            "fifty_two_week_high": _safe_float(data.get("fifty_two_week_high")),
+            "fifty_two_week_low": _safe_float(data.get("fifty_two_week_low")),
+            "volume": data.get("volume", "N/A"),
+            "avg_volume": data.get("avg_volume", "N/A"),
+            "dividend_yield": _safe_float(data.get("dividend_yield")),
+        }
+
+    @staticmethod
+    def format_chart_data(ohlcv: Any) -> pd.DataFrame:
+        """
+        Convert OHLCVSeries DataFrame into a format suitable for Streamlit charting.
+
+        Returns a DataFrame indexed by Date with Open, High, Low, Close columns.
+        Suitable for st.line_chart() or st.area_chart().
+
+        Args:
+            ohlcv: OHLCVSeries domain entity.
+
+        Returns:
+            DataFrame with Date as index and OHLC columns, or empty DataFrame if data unavailable.
+        """
+        if ohlcv is None or ohlcv.df is None or ohlcv.df.empty:
+            return pd.DataFrame()
+
+        try:
+            df = ohlcv.df.copy()
+
+            # Normalize date column
+            date_col = "Date" if "Date" in df.columns else ("date" if "date" in df.columns else None)
+            if date_col is None:
+                return pd.DataFrame()
+
+            df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+            df = df.dropna(subset=[date_col]).sort_values(date_col)
+
+            # Select OHLC columns (case-insensitive)
+            ohlc_cols = []
+            for col in df.columns:
+                if col.lower() in ["open", "high", "low", "close"]:
+                    ohlc_cols.append(col)
+
+            if not ohlc_cols:
+                return pd.DataFrame()
+
+            chart_df = df[[date_col] + ohlc_cols].set_index(date_col)
+            return chart_df
+        except Exception:
+            return pd.DataFrame()
+
+
+__all__ = ["ForecastPresenter", "ComparisonPresenter", "TrainPresenter", "BacktestPresenter", "MarketDataPresenter"]
