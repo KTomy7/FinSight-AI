@@ -119,7 +119,7 @@ def render() -> None:
         st.warning("No metrics were produced by the training run.")
     else:
         st.subheader("Per-model metrics summary")
-        st.dataframe(metrics_frame, use_container_width=True)
+        st.dataframe(metrics_frame, width='stretch')
 
     # Load all model predictions and manifests upfront (cache in session_state)
     if "model_data" not in st.session_state:
@@ -296,7 +296,7 @@ def render() -> None:
 
         if comparison_rows:
             comparison_df = pd.DataFrame(comparison_rows)
-            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+            st.dataframe(comparison_df, width='stretch', hide_index=True)
 
         st.markdown("---")
 

@@ -78,7 +78,7 @@ def render() -> None:
         return
 
     st.subheader("Backtest summary by model")
-    st.dataframe(summary_frame, use_container_width=True, hide_index=True)
+    st.dataframe(summary_frame, width='stretch', hide_index=True)
 
     fold_count = report.split_spec.get("fold_count")
     if fold_count is not None:
@@ -92,5 +92,5 @@ def render() -> None:
         if fold_frame.empty:
             st.info(f"No fold rows available for {model_label}.")
             continue
-        st.dataframe(fold_frame, use_container_width=True, hide_index=True)
+        st.dataframe(fold_frame, width='stretch', hide_index=True)
 

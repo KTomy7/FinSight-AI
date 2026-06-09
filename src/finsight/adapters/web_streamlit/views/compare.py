@@ -97,7 +97,7 @@ def render():
 
     st.subheader("Leaderboard")
 
-    st.dataframe(frame, use_container_width=True, hide_index=True)
+    st.dataframe(frame, width='stretch', hide_index=True)
 
     st.caption("This leaderboard shows the current best recorded run for each selected model when available.")
 
