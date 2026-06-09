@@ -24,7 +24,7 @@ def _render_forecast(result: ForecastResult) -> None:
         return
 
     st.subheader("Forecast Results")
-    st.dataframe(predictions_frame, width='stretch')
+    st.dataframe(predictions_frame, use_container_width=True)
 
     chart_df = ForecastPresenter.format_price_chart_data(result)
     if chart_df is not None:

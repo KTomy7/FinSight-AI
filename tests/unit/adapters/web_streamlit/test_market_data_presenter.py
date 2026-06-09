@@ -2,7 +2,6 @@
 Unit tests for MarketDataPresenter.
 """
 import pandas as pd
-import pytest
 
 from finsight.adapters.web_streamlit.presenters import MarketDataPresenter
 from finsight.domain.entities import OHLCVSeries, StockSummary
