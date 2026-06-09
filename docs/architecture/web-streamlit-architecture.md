@@ -123,6 +123,7 @@ This is the Streamlit adapter layer. It turns use-case results into interactive 
 #### `views/`
 Active pages:
 - `home.py`
+- `market_data.py`
 - `predict.py`
 - `backtest.py`
 - `train_model.py`
@@ -135,6 +136,7 @@ Routing and wiring:
 #### `presenters.py`
 Pure formatting helpers that convert use-case DTOs into pandas DataFrames for display.
 - `ForecastPresenter`
+- `MarketDataPresenter`
 - `ComparisonPresenter`
 - `TrainPresenter`
 - `BacktestPresenter`
@@ -201,6 +203,17 @@ It is not part of the Streamlit UI, but it confirms that the use cases are UI-ag
 - Use case calls: none.
 - Notes: purely informational, with a banner image and navigation hints.
 
+---
+
+ ### `Market Data`
+ **File:** `src/finsight/adapters/web_streamlit/views/market_data.py`
+ - Purpose: explore summary metrics and historical OHLCV for a selected ticker.
+ - Presenter: `MarketDataPresenter`
+ - Primary use case: `FetchMarketData`
+ - Direct DTOs used:
+   - `FetchMarketDataRequest`
+   - `FetchMarketDataResult`
+ 
 ---
 
 ### `Predict`
@@ -323,6 +336,7 @@ The current `Train Model` page is a single-split evaluation page. It is not the 
 The app sidebar in `views/layout.py` exposes these active pages:
 
 - `Home`
+- `Market Data`
 - `Predict`
 - `Backtest`
 - `Train Model`

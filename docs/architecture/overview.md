@@ -94,6 +94,7 @@ Thin presentation layer. Converts use case results into Streamlit widgets.
 |---|---|
 | `app.py` | Page routing, Streamlit app entry point |
 | `views/home.py` | Home / landing page |
+ | `views/market_data.py` | Market data exploration view |
 | `views/predict.py` | Price prediction view |
 | `views/backtest.py` | Walk-forward backtesting view |
 | `views/train_model.py` | Single-split training and per-ticker evaluation view |
