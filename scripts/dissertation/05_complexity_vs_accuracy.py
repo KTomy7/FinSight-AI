@@ -5,9 +5,9 @@ Script 5 — Model Complexity vs. Accuracy (Single Cutoff + Walk-Forward)
 Reads per-stock metrics CSVs from Script 02 and:
 
  1. Assigns an ordinal complexity score to each model.
- 2. Produces scatter plots of complexity (x) vs RMSE (y) per ticker,
-    for **both** evaluation strategies (side-by-side).
- 3. Computes Spearman rank correlation between complexity and RMSE to
+ 2. Produces scatter plots of complexity (x) vs RMSE (y) and complexity (x) vs
+    R² (y) per ticker, for **both** evaluation strategies (side-by-side).
+ 3. Computes Spearman rank correlation between complexity and RMSE/R² to
     quantify the "model complexity vs. predictive gain" relationship.
 
 Outputs
@@ -15,6 +15,9 @@ Outputs
 artifacts/dissertation/plots/complexity_vs_rmse.png           — single cutoff
 artifacts/dissertation/plots/complexity_vs_rmse_wf.png        — walk-forward
 artifacts/dissertation/plots/complexity_vs_rmse_comparison.png — side-by-side
+artifacts/dissertation/plots/complexity_vs_r2.png             — single cutoff (R²)
+artifacts/dissertation/plots/complexity_vs_r2_wf.png          — walk-forward (R²)
+artifacts/dissertation/plots/complexity_vs_r2_comparison.png  — side-by-side (R²)
 
 Run from repo root:
     python scripts/dissertation/05_complexity_vs_accuracy.py
@@ -72,13 +75,15 @@ def _scatter(
     ax: plt.Axes,
     df: pd.DataFrame,
     title: str,
+    metric: str = "rmse",
+    y_label: str = "RMSE",
 ) -> None:
-    """Draw one scatter panel: complexity (x) vs RMSE (y), grouped by ticker."""
+    """Draw one scatter panel: complexity (x) vs metric (y), grouped by ticker."""
     for ticker, (marker, color) in TICKER_MARKERS.items():
         tdf = df[df["ticker"] == ticker]
         ax.scatter(
             tdf["complexity"],
-            tdf["rmse"],
+            tdf[metric],
             marker=marker,
             color=color,
             s=80,
@@ -91,7 +96,7 @@ def _scatter(
         for _, row in tdf.iterrows():
             ax.annotate(
                 row["model_label"],
-                (row["complexity"], row["rmse"]),
+                (row["complexity"], row[metric]),
                 textcoords="offset points",
                 xytext=(6, 4),
                 fontsize=7,
@@ -100,7 +105,7 @@ def _scatter(
             )
 
     ax.set_xlabel("Model Complexity Score", fontsize=11)
-    ax.set_ylabel("RMSE", fontsize=11)
+    ax.set_ylabel(y_label, fontsize=11)
     ax.set_title(title, fontsize=12, fontweight="bold")
     ax.set_xticks(list(COMPLEXITY.values()))
     ax.set_xticklabels(
@@ -113,27 +118,33 @@ def _scatter(
     ax.grid(True, alpha=0.3)
 
 
-def _single_plot(df: pd.DataFrame, out_path: Path, title: str) -> None:
+def _single_plot(
+    df: pd.DataFrame,
+    out_path: Path,
+    title: str,
+    metric: str = "rmse",
+    y_label: str = "RMSE",
+) -> None:
     """Standalone scatter plot for one evaluation approach."""
     fig, ax = plt.subplots(figsize=(10, 7))
-    _scatter(ax, df, title)
+    _scatter(ax, df, title, metric=metric, y_label=y_label)
     plt.tight_layout()
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved {out_path}")
 
 
-def _spearman(df: pd.DataFrame, label: str) -> None:
-    """Print Spearman ρ between complexity and RMSE (across all tickers)."""
-    rho, p = stats.spearmanr(df["complexity"], df["rmse"])
-    print(f"\n  Spearman ρ ({label}): {rho:+.4f}  (p = {p:.4f})")
+def _spearman(df: pd.DataFrame, label: str, metric: str = "rmse") -> None:
+    """Print Spearman ρ between complexity and a metric (across all tickers)."""
+    rho, p = stats.spearmanr(df["complexity"], df[metric])
+    print(f"\n  Spearman ρ  complexity vs {metric}  ({label}): {rho:+.4f}  (p = {p:.4f})")
 
     # Also per-ticker
     for ticker in sorted(df["ticker"].unique()):
         tdf = df[df["ticker"] == ticker]
         if len(tdf) < 3:
             continue
-        rho_t, p_t = stats.spearmanr(tdf["complexity"], tdf["rmse"])
+        rho_t, p_t = stats.spearmanr(tdf["complexity"], tdf[metric])
         print(f"    {ticker}: ρ = {rho_t:+.4f}  (p = {p_t:.4f})")
 
 
@@ -155,28 +166,27 @@ def main() -> None:
     sc_df = _prepare(pd.read_csv(sc_path)) if has_sc else None
     wf_df = _prepare(pd.read_csv(wf_path)) if has_wf else None
 
-    # ── Individual plots ─────────────────────────────────────────────────────
+    # ── RMSE plots ─────────────────────────────────────────────────────────
     if sc_df is not None:
-        print("Single-cutoff scatter plot:")
+        print("Single-cutoff scatter plot (RMSE):")
         _single_plot(
             sc_df,
             PLOT_DIR / "complexity_vs_rmse.png",
             "Model Complexity vs. RMSE [Single Cutoff]",
         )
-        _spearman(sc_df, "Single Cutoff — all tickers pooled")
+        _spearman(sc_df, "Single Cutoff — all tickers pooled", metric="rmse")
 
     if wf_df is not None:
-        print("\nWalk-forward scatter plot:")
+        print("\nWalk-forward scatter plot (RMSE):")
         _single_plot(
             wf_df,
             PLOT_DIR / "complexity_vs_rmse_wf.png",
             "Model Complexity vs. RMSE [Walk-Forward]",
         )
-        _spearman(wf_df, "Walk-Forward — all tickers pooled")
+        _spearman(wf_df, "Walk-Forward — all tickers pooled", metric="rmse")
 
-    # ── Side-by-side comparison ──────────────────────────────────────────────
     if sc_df is not None and wf_df is not None:
-        print("\nSide-by-side comparison plot:")
+        print("\nSide-by-side comparison plot (RMSE):")
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7), sharey=True)
         _scatter(ax1, sc_df, "Single Cutoff")
         _scatter(ax2, wf_df, "Walk-Forward")
@@ -188,6 +198,46 @@ def main() -> None:
         )
         plt.tight_layout()
         out = PLOT_DIR / "complexity_vs_rmse_comparison.png"
+        fig.savefig(out, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+        print(f"  Saved {out}")
+
+    # ── R² plots ─────────────────────────────────────────────────────────────
+    if sc_df is not None:
+        print("\nSingle-cutoff scatter plot (R²):")
+        _single_plot(
+            sc_df,
+            PLOT_DIR / "complexity_vs_r2.png",
+            "Model Complexity vs. R² [Single Cutoff]",
+            metric="r2",
+            y_label="R²",
+        )
+        _spearman(sc_df, "Single Cutoff — all tickers pooled", metric="r2")
+
+    if wf_df is not None:
+        print("\nWalk-forward scatter plot (R²):")
+        _single_plot(
+            wf_df,
+            PLOT_DIR / "complexity_vs_r2_wf.png",
+            "Model Complexity vs. R² [Walk-Forward]",
+            metric="r2",
+            y_label="R²",
+        )
+        _spearman(wf_df, "Walk-Forward — all tickers pooled", metric="r2")
+
+    if sc_df is not None and wf_df is not None:
+        print("\nSide-by-side comparison plot (R²):")
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7), sharey=True)
+        _scatter(ax1, sc_df, "Single Cutoff", metric="r2", y_label="R²")
+        _scatter(ax2, wf_df, "Walk-Forward", metric="r2", y_label="R²")
+        fig.suptitle(
+            "Model Complexity vs. R² — Evaluation Strategy Comparison",
+            fontsize=14,
+            fontweight="bold",
+            y=1.01,
+        )
+        plt.tight_layout()
+        out = PLOT_DIR / "complexity_vs_r2_comparison.png"
         fig.savefig(out, dpi=150, bbox_inches="tight")
         plt.close(fig)
         print(f"  Saved {out}")

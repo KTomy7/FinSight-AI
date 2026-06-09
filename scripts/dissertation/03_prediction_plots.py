@@ -36,6 +36,7 @@ import matplotlib.dates as mdates
 import pandas as pd
 
 from finsight.config.settings import get_settings
+from finsight.domain.metrics import forecast_metrics
 from finsight.infrastructure.ml.registry import LocalFileModelRegistry
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -129,6 +130,13 @@ def plot_per_ticker(
             ax.plot(tdf["date"], tdf["y_pred"], color=COLORS["predicted"],
                     linewidth=0.8, alpha=0.7, label="Predicted")
             ax.axhline(0, color="gray", linewidth=0.4, linestyle="--")
+            # Annotate metrics
+            m = forecast_metrics(tdf["y_true"].tolist(), tdf["y_pred"].tolist())
+            metrics_text = (f"MAE={m['mae']:.5f}  RMSE={m['rmse']:.5f}\n"
+                            f"R²={m['r2']:.4f}  DirAcc={m['direction_accuracy']:.1%}")
+            ax.text(0.02, 0.97, metrics_text, transform=ax.transAxes,
+                    fontsize=7, verticalalignment="top",
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.5))
             ax.set_title(f"{MODEL_LABELS.get(model_id, model_id)} — {ticker}",
                          fontsize=11)
             ax.set_ylabel("Daily Return", fontsize=9)
@@ -183,6 +191,13 @@ def plot_per_model(
             ax.plot(tdf["date"], tdf["y_pred"], color=tc,
                     linewidth=0.8, alpha=0.7, label=f"Predicted ({ticker})")
             ax.axhline(0, color="gray", linewidth=0.4, linestyle="--")
+            # Annotate metrics
+            m = forecast_metrics(tdf["y_true"].tolist(), tdf["y_pred"].tolist())
+            metrics_text = (f"MAE={m['mae']:.5f}  RMSE={m['rmse']:.5f}\n"
+                            f"R²={m['r2']:.4f}  DirAcc={m['direction_accuracy']:.1%}")
+            ax.text(0.02, 0.97, metrics_text, transform=ax.transAxes,
+                    fontsize=7, verticalalignment="top",
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.5))
             ax.set_title(f"{label} — {ticker}", fontsize=11)
             ax.set_ylabel("Daily Return", fontsize=9)
             ax.legend(fontsize=8, loc="upper right")

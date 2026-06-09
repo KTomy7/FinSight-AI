@@ -23,7 +23,7 @@ compared directly:
 | End date | `2024-12-31` |
 | Models | `naive_zero`, `naive_mean`, `ridge`, `hist_gbdt`, `xgboost` |
 | Tickers | AAPL, JPM, XOM, KO, TSLA |
-| Metrics | MAE, RMSE, Direction Accuracy |
+| Metrics | MAE, RMSE, R², Direction Accuracy |
 
 ## Prerequisites
 
@@ -85,5 +85,8 @@ artifacts/
         ├── <MODEL_ID>_all_tickers_wf.png
         ├── complexity_vs_rmse.png
         ├── complexity_vs_rmse_wf.png
-        └── complexity_vs_rmse_comparison.png
+        ├── complexity_vs_rmse_comparison.png
+        ├── complexity_vs_r2.png
+        ├── complexity_vs_r2_wf.png
+        └── complexity_vs_r2_comparison.png
 ```

@@ -4,7 +4,7 @@ Script 4 — Aggregate Leaderboard (Single Cutoff + Walk-Forward)
 ================================================================
 Reads the per-stock metrics CSVs produced by Script 02 and:
 
- 1. Computes aggregate statistics per model (mean MAE, RMSE, Direction Accuracy).
+ 1. Computes aggregate statistics per model (mean MAE, RMSE, R², Direction Accuracy).
  2. Ranks by mean RMSE (ascending).
  3. Groups tickers by sector and prints mean RMSE per model per sector.
  4. Compares single-cutoff vs walk-forward aggregate results side-by-side.
@@ -49,12 +49,13 @@ SECTOR_MAP = {
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 def build_aggregate(df: pd.DataFrame) -> pd.DataFrame:
-    """Mean MAE, RMSE, Direction Accuracy per model, ranked by RMSE asc."""
+    """Mean MAE, RMSE, R², Direction Accuracy per model, ranked by RMSE asc."""
     agg = (
         df.groupby("model_id")
         .agg(
             mean_mae=("mae", "mean"),
             mean_rmse=("rmse", "mean"),
+            mean_r2=("r2", "mean"),
             mean_direction_accuracy=("direction_accuracy", "mean"),
         )
         .sort_values("mean_rmse")
@@ -131,12 +132,13 @@ def main() -> None:
     if sc_agg is not None and wf_agg is not None:
         print_section("Comparison: Single Cutoff vs Walk-Forward")
 
-        comp = sc_agg[["model_id", "model_label", "mean_rmse", "mean_mae", "mean_direction_accuracy"]].copy()
-        comp.columns = ["model_id", "model", "sc_rmse", "sc_mae", "sc_dir_acc"]
-        wf_cols = wf_agg[["model_id", "mean_rmse", "mean_mae", "mean_direction_accuracy"]].copy()
-        wf_cols.columns = ["model_id", "wf_rmse", "wf_mae", "wf_dir_acc"]
+        comp = sc_agg[["model_id", "model_label", "mean_rmse", "mean_mae", "mean_r2", "mean_direction_accuracy"]].copy()
+        comp.columns = ["model_id", "model", "sc_rmse", "sc_mae", "sc_r2", "sc_dir_acc"]
+        wf_cols = wf_agg[["model_id", "mean_rmse", "mean_mae", "mean_r2", "mean_direction_accuracy"]].copy()
+        wf_cols.columns = ["model_id", "wf_rmse", "wf_mae", "wf_r2", "wf_dir_acc"]
         comp = comp.merge(wf_cols, on="model_id", how="outer")
         comp["rmse_delta"] = comp["wf_rmse"] - comp["sc_rmse"]
+        comp["r2_delta"] = comp["wf_r2"] - comp["sc_r2"]
         comp["dir_acc_delta"] = comp["wf_dir_acc"] - comp["sc_dir_acc"]
         comp = comp.sort_values("sc_rmse")
         comp.to_csv(DISS_DIR / "aggregate_comparison.csv", index=False)

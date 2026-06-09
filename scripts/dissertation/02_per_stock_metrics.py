@@ -3,8 +3,8 @@
 Script 2 — Per-Stock Metrics: Single Cutoff + Walk-Forward
 ===========================================================
 Part 1  Uses the application layer (build_container / TrainModelRequest) to
-        train all five models with cutoff=2024-01-01, then computes MAE, RMSE
-        and Direction Accuracy for every model × ticker pair.
+        train all five models with cutoff=2024-01-01, then computes MAE, RMSE,
+        R² and Direction Accuracy for every model × ticker pair.
 
 Part 2  Runs expanding-window walk-forward validation on the same 3-year data
         set, collects per-ticker metrics averaged across folds, and saves the
@@ -71,7 +71,7 @@ def _per_ticker_metrics(
     preds: pd.DataFrame,
     model_id: str,
 ) -> list[dict[str, object]]:
-    """Compute MAE/RMSE/direction_accuracy per ticker from a predictions DF."""
+    """Compute MAE/RMSE/R²/direction_accuracy per ticker from a predictions DF."""
     rows: list[dict[str, object]] = []
     for ticker in TICKERS:
         tp = preds[preds["ticker"] == ticker]
@@ -84,6 +84,7 @@ def _per_ticker_metrics(
                 "model_id": model_id,
                 "mae": m["mae"],
                 "rmse": m["rmse"],
+                "r2": m["r2"],
                 "direction_accuracy": m["direction_accuracy"],
             }
         )
