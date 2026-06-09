@@ -93,12 +93,15 @@ Thin presentation layer. Converts use case results into Streamlit widgets.
 | Module | Contents |
 |---|---|
 | `app.py` | Page routing, Streamlit app entry point |
-| `views/home.py` | Home / dashboard view |
+| `views/home.py` | Home / landing page |
 | `views/predict.py` | Price prediction view |
-| `views/train_backtest.py` | Training, backtesting, and per-ticker chart view |
-| `views/compare.py` | Side-by-side model comparison view |
+| `views/backtest.py` | Walk-forward backtesting view |
+| `views/train_model.py` | Single-split training and per-ticker evaluation view |
+| `views/compare.py` | Model comparison leaderboard view |
 | `presenters.py` | Converts domain/DTO objects to display-ready dicts |
 | `ticker_options.py` | Helper to build ticker dropdown options from config |
+
+For a deeper page-by-page reference, see [Web Streamlit Architecture](web-streamlit-architecture.md).
 
 **Rules:**
 - Views call use cases via the container; they do not construct infrastructure objects directly.
