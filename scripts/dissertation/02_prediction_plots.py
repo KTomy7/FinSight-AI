@@ -1,30 +1,22 @@
 #!/usr/bin/env python3
 """
-Script 3 — Prediction vs. Actual Plots (Return & Price, SC + WF)
-=================================================================
-After training has been run (Scripts 01 & 02), loads backtest predictions and
-produces:
+Script 2 — Prediction vs. Actual Plots
+========================================
+Loads prediction CSVs produced by Script 01 and generates:
 
-  Per-ticker figures  — 5 subplots (one per model) with predicted vs actual
-                        on the test set.
-  Per-model figures   — all 5 tickers on one figure.
+  Per-ticker figures  — 5 subplots (one per model), predicted vs actual.
+  Per-model figures   — 5 subplots (one per ticker).
 
-Each plot type is generated for **both** the single-cutoff and walk-forward
-approaches, and for **both** return and price-level targets.
+Generated for all four combinations:
+  {sc, wf} × {return, price}
 
-Outputs
--------
-artifacts/dissertation/plots/<TICKER>_prediction_vs_actual.png
-artifacts/dissertation/plots/<TICKER>_prediction_vs_actual_wf.png
-artifacts/dissertation/plots/<TICKER>_prediction_vs_actual_price.png
-artifacts/dissertation/plots/<TICKER>_prediction_vs_actual_price_wf.png
-artifacts/dissertation/plots/<MODEL_ID>_all_tickers.png
-artifacts/dissertation/plots/<MODEL_ID>_all_tickers_wf.png
-artifacts/dissertation/plots/<MODEL_ID>_all_tickers_price.png
-artifacts/dissertation/plots/<MODEL_ID>_all_tickers_price_wf.png
+Outputs  (all under ``artifacts/dissertation/plots/``)
+------------------------------------------------------
+<TICKER>_prediction_vs_actual_{strategy}_{target}.png
+<MODEL_ID>_all_tickers_{strategy}_{target}.png
 
 Run from repo root:
-    python scripts/dissertation/03_prediction_plots.py
+    python scripts/dissertation/02_prediction_plots.py
 """
 from __future__ import annotations
 
@@ -41,80 +33,47 @@ import pandas as pd
 
 from finsight.config.settings import get_settings
 from finsight.domain.metrics import forecast_metrics
-from finsight.infrastructure.ml.registry import LocalFileModelRegistry
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 TICKERS = ["AAPL", "JPM", "XOM", "KO", "TSLA"]
 MODEL_IDS = ["naive_zero", "naive_mean", "ridge", "hist_gbdt", "xgboost"]
-ARTIFACTS_DIR = "artifacts/runs"
 DISS_DIR = Path("artifacts/dissertation")
 PLOT_DIR = DISS_DIR / "plots"
-WF_PRED_DIR = DISS_DIR / "wf_predictions"
-SC_PRED_PRICE_DIR = DISS_DIR / "sc_predictions_price"
-WF_PRED_PRICE_DIR = DISS_DIR / "wf_predictions_price"
-
 MODEL_LABELS = get_settings().model_defaults.id_to_label()
 
-COLORS = {
-    "actual": "#333333",
-    "predicted": "#2196F3",
-}
+STRATEGIES = ["sc", "wf"]
+TARGETS = ["return", "price"]
+STRATEGY_LABELS = {"sc": "Single Cutoff", "wf": "Walk-Forward"}
+TARGET_LABELS = {"return": "Return", "price": "Price"}
+
+COLORS = {"actual": "#333333", "predicted": "#2196F3"}
 TICKER_COLORS = {
-    "AAPL": "#007AFF",
-    "JPM": "#1B5E20",
-    "XOM": "#E65100",
-    "KO": "#B71C1C",
-    "TSLA": "#6A1B9A",
+    "AAPL": "#007AFF", "JPM": "#1B5E20", "XOM": "#E65100",
+    "KO": "#B71C1C", "TSLA": "#6A1B9A",
 }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Data loading helpers
+# Data loading
 # ═══════════════════════════════════════════════════════════════════════════════
-def load_single_cutoff_predictions() -> dict[str, pd.DataFrame]:
-    """Load return predictions from artifacts/runs/ for each model_id."""
-    registry = LocalFileModelRegistry()
-    preds_by_model: dict[str, pd.DataFrame] = {}
-    for model_id in MODEL_IDS:
-        run_id = registry.latest_run_id(artifact_root=ARTIFACTS_DIR, model_id=model_id)
-        path = Path(ARTIFACTS_DIR) / run_id / "predictions.csv"
-        df = pd.read_csv(path, parse_dates=["date"])
-        preds_by_model[model_id] = df
-    return preds_by_model
-
-
-def _load_from_dir(pred_dir: Path) -> dict[str, pd.DataFrame]:
-    """Load predictions CSVs from a directory (one per model)."""
+def load_predictions(strategy: str, target: str) -> dict[str, pd.DataFrame]:
+    pred_dir = DISS_DIR / f"predictions_{strategy}_{target}"
     preds: dict[str, pd.DataFrame] = {}
     for model_id in MODEL_IDS:
         path = pred_dir / f"{model_id}.csv"
         if not path.exists():
-            print(f"  ⚠ Predictions not found: {path}")
+            print(f"  ⚠ Missing: {path}")
             continue
-        df = pd.read_csv(path, parse_dates=["date"])
-        preds[model_id] = df
+        preds[model_id] = pd.read_csv(path, parse_dates=["date"])
     return preds
-
-
-def load_walk_forward_predictions() -> dict[str, pd.DataFrame]:
-    return _load_from_dir(WF_PRED_DIR)
-
-
-def load_price_sc_predictions() -> dict[str, pd.DataFrame]:
-    return _load_from_dir(SC_PRED_PRICE_DIR)
-
-
-def load_price_wf_predictions() -> dict[str, pd.DataFrame]:
-    return _load_from_dir(WF_PRED_PRICE_DIR)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Metrics helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 def _subplot_metrics(tdf: pd.DataFrame, is_price: bool = False) -> dict[str, float]:
-    """Compute metrics for one subplot's data slice."""
     m = forecast_metrics(tdf["y_true"].tolist(), tdf["y_pred"].tolist())
     if is_price and "close" in tdf.columns and tdf["close"].notna().all():
         actual_up = tdf["y_true"].values > tdf["close"].values
@@ -136,24 +95,21 @@ def _metrics_text(m: dict[str, float], is_price: bool = False) -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 def plot_per_ticker(
     preds_by_model: dict[str, pd.DataFrame],
-    suffix: str = "",
-    title_extra: str = "",
-    y_label: str = "Daily Return",
-    is_price: bool = False,
+    strategy: str,
+    target: str,
 ) -> None:
-    """
-    For each ticker, create a figure with 5 subplots (one per model).
-    Each subplot: predicted value vs actual value over the test dates.
-    """
-    value_kind = "Next-Day Close Price" if is_price else "Daily Return"
+    is_price = target == "price"
+    y_label = "Close Price ($)" if is_price else "Daily Return"
+    strat_label = STRATEGY_LABELS[strategy]
+    tgt_label = TARGET_LABELS[target]
+    suffix = f"_{strategy}_{target}"
+
     for ticker in TICKERS:
         fig, axes = plt.subplots(3, 2, figsize=(16, 12), sharex=True)
         axes_flat = axes.flatten()
         fig.suptitle(
-            f"{ticker} — Predicted vs Actual {value_kind}{title_extra}",
-            fontsize=15,
-            fontweight="bold",
-            y=0.98,
+            f"{ticker} — Predicted vs Actual [{strat_label}, {tgt_label}]",
+            fontsize=15, fontweight="bold", y=0.98,
         )
 
         for idx, model_id in enumerate(MODEL_IDS):
@@ -173,22 +129,19 @@ def plot_per_ticker(
                     linewidth=0.8, alpha=0.7, label="Predicted")
             if not is_price:
                 ax.axhline(0, color="gray", linewidth=0.4, linestyle="--")
-            # Annotate metrics
+
             m = _subplot_metrics(tdf, is_price=is_price)
             ax.text(0.02, 0.97, _metrics_text(m, is_price=is_price),
                     transform=ax.transAxes, fontsize=7, verticalalignment="top",
                     bbox=dict(boxstyle="round,pad=0.3", facecolor="wheat", alpha=0.5))
-            ax.set_title(f"{MODEL_LABELS.get(model_id, model_id)} — {ticker}",
-                         fontsize=11)
+            ax.set_title(f"{MODEL_LABELS.get(model_id, model_id)} — {ticker}", fontsize=11)
             ax.set_ylabel(y_label, fontsize=9)
             ax.legend(fontsize=8, loc="upper right")
             ax.tick_params(labelsize=8)
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
             ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
 
-        # Hide unused subplot (6th cell in 3x2 grid)
         axes_flat[5].set_visible(False)
-
         fig.autofmt_xdate(rotation=30)
         plt.tight_layout(rect=[0, 0, 1, 0.96])
         out = PLOT_DIR / f"{ticker}_prediction_vs_actual{suffix}.png"
@@ -199,14 +152,15 @@ def plot_per_ticker(
 
 def plot_per_model(
     preds_by_model: dict[str, pd.DataFrame],
-    suffix: str = "",
-    title_extra: str = "",
-    y_label: str = "Daily Return",
-    is_price: bool = False,
+    strategy: str,
+    target: str,
 ) -> None:
-    """
-    For each model, create a figure with 5 subplots (one per ticker).
-    """
+    is_price = target == "price"
+    y_label = "Close Price ($)" if is_price else "Daily Return"
+    strat_label = STRATEGY_LABELS[strategy]
+    tgt_label = TARGET_LABELS[target]
+    suffix = f"_{strategy}_{target}"
+
     for model_id in MODEL_IDS:
         df = preds_by_model.get(model_id)
         if df is None:
@@ -215,10 +169,8 @@ def plot_per_model(
         label = MODEL_LABELS.get(model_id, model_id)
         fig, axes = plt.subplots(5, 1, figsize=(14, 16), sharex=True)
         fig.suptitle(
-            f"{label} — All Tickers{title_extra}",
-            fontsize=15,
-            fontweight="bold",
-            y=0.99,
+            f"{label} — All Tickers [{strat_label}, {tgt_label}]",
+            fontsize=15, fontweight="bold", y=0.99,
         )
 
         for idx, ticker in enumerate(TICKERS):
@@ -235,7 +187,7 @@ def plot_per_model(
                     linewidth=0.8, alpha=0.7, label=f"Predicted ({ticker})")
             if not is_price:
                 ax.axhline(0, color="gray", linewidth=0.4, linestyle="--")
-            # Annotate metrics
+
             m = _subplot_metrics(tdf, is_price=is_price)
             ax.text(0.02, 0.97, _metrics_text(m, is_price=is_price),
                     transform=ax.transAxes, fontsize=7, verticalalignment="top",
@@ -261,58 +213,22 @@ def plot_per_model(
 def main() -> None:
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
-    plot_kwargs_return = dict(y_label="Daily Return", is_price=False)
-    plot_kwargs_price = dict(y_label="Close Price ($)", is_price=True)
+    for strategy in STRATEGIES:
+        for target in TARGETS:
+            tag = f"{STRATEGY_LABELS[strategy]}, {TARGET_LABELS[target]}"
+            print(f"\n{'=' * 60}")
+            print(f"Loading predictions: {tag}")
+            print("=" * 60)
 
-    # ── Return — Single Cutoff ───────────────────────────────────────────────
-    print("=" * 60)
-    print("Loading single-cutoff predictions (return) …")
-    print("=" * 60)
-    sc_preds = load_single_cutoff_predictions()
+            preds = load_predictions(strategy, target)
+            if not preds:
+                print(f"  ⚠ No predictions found for {tag}. Run Script 01 first.")
+                continue
 
-    print("\nPer-ticker plots (return, single cutoff):")
-    plot_per_ticker(sc_preds, suffix="", title_extra=" [Single Cutoff]", **plot_kwargs_return)
-    print("\nPer-model plots (return, single cutoff):")
-    plot_per_model(sc_preds, suffix="", title_extra=" [Single Cutoff]", **plot_kwargs_return)
-
-    # ── Return — Walk-Forward ────────────────────────────────────────────────
-    print("\n" + "=" * 60)
-    print("Loading walk-forward predictions (return) …")
-    print("=" * 60)
-    wf_preds = load_walk_forward_predictions()
-    if wf_preds:
-        print("\nPer-ticker plots (return, walk-forward):")
-        plot_per_ticker(wf_preds, suffix="_wf", title_extra=" [Walk-Forward]", **plot_kwargs_return)
-        print("\nPer-model plots (return, walk-forward):")
-        plot_per_model(wf_preds, suffix="_wf", title_extra=" [Walk-Forward]", **plot_kwargs_return)
-    else:
-        print("  ⚠ No walk-forward return predictions found. Run Script 02 first.")
-
-    # ── Price — Single Cutoff ────────────────────────────────────────────────
-    print("\n" + "=" * 60)
-    print("Loading single-cutoff predictions (price) …")
-    print("=" * 60)
-    price_sc = load_price_sc_predictions()
-    if price_sc:
-        print("\nPer-ticker plots (price, single cutoff):")
-        plot_per_ticker(price_sc, suffix="_price", title_extra=" [Single Cutoff]", **plot_kwargs_price)
-        print("\nPer-model plots (price, single cutoff):")
-        plot_per_model(price_sc, suffix="_price", title_extra=" [Single Cutoff]", **plot_kwargs_price)
-    else:
-        print("  ⚠ No price single-cutoff predictions found. Run Script 02 first.")
-
-    # ── Price — Walk-Forward ─────────────────────────────────────────────────
-    print("\n" + "=" * 60)
-    print("Loading walk-forward predictions (price) …")
-    print("=" * 60)
-    price_wf = load_price_wf_predictions()
-    if price_wf:
-        print("\nPer-ticker plots (price, walk-forward):")
-        plot_per_ticker(price_wf, suffix="_price_wf", title_extra=" [Walk-Forward]", **plot_kwargs_price)
-        print("\nPer-model plots (price, walk-forward):")
-        plot_per_model(price_wf, suffix="_price_wf", title_extra=" [Walk-Forward]", **plot_kwargs_price)
-    else:
-        print("  ⚠ No price walk-forward predictions found. Run Script 02 first.")
+            print(f"\nPer-ticker plots ({tag}):")
+            plot_per_ticker(preds, strategy, target)
+            print(f"\nPer-model plots ({tag}):")
+            plot_per_model(preds, strategy, target)
 
     print(f"\nAll plots saved to {PLOT_DIR}/")
 

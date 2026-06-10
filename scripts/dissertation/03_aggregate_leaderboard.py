@@ -1,27 +1,29 @@
 #!/usr/bin/env python3
 """
-Script 4 — Aggregate Leaderboard (Return & Price, SC + WF)
-============================================================
-Reads the per-stock metrics CSVs produced by Script 02 and:
+Script 3 — Aggregate Leaderboard + Comparisons
+================================================
+Reads per-stock metrics CSVs from Script 01 and:
 
- 1. Computes aggregate statistics per model (mean MAE, RMSE, R², Dir. Accuracy).
+ 1. Computes aggregate leaderboard per model (mean MAE, RMSE, R², Dir. Acc).
  2. Ranks by mean RMSE (ascending).
  3. Groups tickers by sector and prints mean RMSE per model per sector.
- 4. Compares single-cutoff vs walk-forward aggregate results side-by-side.
- 5. Compares return-target vs price-target model rankings.
+ 4. Compares SC vs WF side-by-side for each target type.
+ 5. Compares return vs price model rankings.
+ 6. Saves a formatted text leaderboard (replaces ``finsight compare``).
 
-Outputs
--------
-artifacts/dissertation/aggregate_leaderboard.csv            — return SC
-artifacts/dissertation/aggregate_leaderboard_wf.csv         — return WF
-artifacts/dissertation/aggregate_comparison.csv             — return SC vs WF
-artifacts/dissertation/aggregate_leaderboard_price.csv      — price SC
-artifacts/dissertation/aggregate_leaderboard_price_wf.csv   — price WF
-artifacts/dissertation/aggregate_comparison_price.csv       — price SC vs WF
-artifacts/dissertation/aggregate_return_vs_price.csv        — return vs price
+Outputs  (all under ``artifacts/dissertation/``)
+-------------------------------------------------
+aggregate_leaderboard_sc_return.csv
+aggregate_leaderboard_wf_return.csv
+aggregate_leaderboard_sc_price.csv
+aggregate_leaderboard_wf_price.csv
+aggregate_comparison_return.csv           — SC vs WF (return)
+aggregate_comparison_price.csv            — SC vs WF (price)
+aggregate_comparison_return_vs_price.csv  — return vs price
+leaderboard.txt                           — formatted text summary
 
 Run from repo root:
-    python scripts/dissertation/04_aggregate_leaderboard.py
+    python scripts/dissertation/03_aggregate_leaderboard.py
 """
 from __future__ import annotations
 
@@ -40,6 +42,11 @@ from finsight.config.settings import get_settings
 DISS_DIR = Path("artifacts/dissertation")
 MODEL_LABELS = get_settings().model_defaults.id_to_label()
 
+STRATEGIES = ["sc", "wf"]
+TARGETS = ["return", "price"]
+STRATEGY_LABELS = {"sc": "Single Cutoff", "wf": "Walk-Forward"}
+TARGET_LABELS = {"return": "Return", "price": "Price"}
+
 SECTOR_MAP = {
     "KO": "Consumer Staples",
     "JPM": "Financial",
@@ -48,19 +55,16 @@ SECTOR_MAP = {
     "TSLA": "Growth / Volatile",
 }
 
-# CSV paths — return
-SC_RET = DISS_DIR / "per_stock_metrics.csv"
-WF_RET = DISS_DIR / "per_stock_metrics_wf.csv"
-# CSV paths — price
-SC_PRICE = DISS_DIR / "per_stock_metrics_price.csv"
-WF_PRICE = DISS_DIR / "per_stock_metrics_price_wf.csv"
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
+def _load(strategy: str, target: str) -> pd.DataFrame | None:
+    path = DISS_DIR / f"per_stock_metrics_{strategy}_{target}.csv"
+    return pd.read_csv(path) if path.exists() else None
+
+
 def build_aggregate(df: pd.DataFrame) -> pd.DataFrame:
-    """Mean MAE, RMSE, R², Direction Accuracy per model, ranked by RMSE asc."""
     agg = (
         df.groupby("model_id")
         .agg(
@@ -78,7 +82,6 @@ def build_aggregate(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_sector_table(df: pd.DataFrame) -> pd.DataFrame:
-    """Mean RMSE per model per sector group."""
     df = df.copy()
     df["sector"] = df["ticker"].map(SECTOR_MAP)
     return (
@@ -90,7 +93,6 @@ def build_sector_table(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_comparison(sc_agg: pd.DataFrame, wf_agg: pd.DataFrame) -> pd.DataFrame:
-    """Side-by-side comparison of SC vs WF aggregates."""
     comp = sc_agg[["model_id", "model_label", "mean_rmse", "mean_mae",
                     "mean_r2", "mean_direction_accuracy"]].copy()
     comp.columns = ["model_id", "model", "sc_rmse", "sc_mae", "sc_r2", "sc_dir_acc"]
@@ -104,7 +106,7 @@ def build_comparison(sc_agg: pd.DataFrame, wf_agg: pd.DataFrame) -> pd.DataFrame
     return comp.sort_values("sc_rmse")
 
 
-def print_section(title: str) -> None:
+def _section(title: str) -> None:
     print("\n" + "=" * 70)
     print(f"  {title}")
     print("=" * 70)
@@ -121,107 +123,110 @@ def rank_stability(sc_agg: pd.DataFrame, wf_agg: pd.DataFrame) -> None:
         print(f"  Walk-forward  : {wf_rank}")
 
 
-def _process_target(
-    sc_path: Path,
-    wf_path: Path,
-    label: str,
-    sc_out: str,
-    wf_out: str,
-    comp_out: str,
-) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
-    """Process one target type (return or price). Returns (sc_agg, wf_agg)."""
-    has_sc = sc_path.exists()
-    has_wf = wf_path.exists()
-    sc_agg = wf_agg = None
-
-    if has_sc:
-        sc_df = pd.read_csv(sc_path)
-        sc_agg = build_aggregate(sc_df)
-        sc_agg.to_csv(DISS_DIR / sc_out, index=False)
-
-        print_section(f"{label} — Single-Cutoff Aggregate Leaderboard (ranked by RMSE)")
-        print(sc_agg.to_string(index=False))
-        print(f"\nSaved → {DISS_DIR / sc_out}")
-
-        print_section(f"{label} — Single-Cutoff Sector Breakdown (Mean RMSE)")
-        print(build_sector_table(sc_df).to_string())
-
-    if has_wf:
-        wf_df = pd.read_csv(wf_path)
-        wf_agg = build_aggregate(wf_df)
-        wf_agg.to_csv(DISS_DIR / wf_out, index=False)
-
-        print_section(f"{label} — Walk-Forward Aggregate Leaderboard (ranked by RMSE)")
-        print(wf_agg.to_string(index=False))
-        print(f"\nSaved → {DISS_DIR / wf_out}")
-
-        print_section(f"{label} — Walk-Forward Sector Breakdown (Mean RMSE)")
-        print(build_sector_table(wf_df).to_string())
-
-    if sc_agg is not None and wf_agg is not None:
-        print_section(f"{label} — Comparison: SC vs WF")
-        comp = build_comparison(sc_agg, wf_agg)
-        comp.to_csv(DISS_DIR / comp_out, index=False)
-        print(comp.to_string(index=False))
-        print(f"\nSaved → {DISS_DIR / comp_out}")
-        rank_stability(sc_agg, wf_agg)
-
-    return sc_agg, wf_agg
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════════
 def main() -> None:
-    any_found = any(p.exists() for p in (SC_RET, WF_RET, SC_PRICE, WF_PRICE))
-    if not any_found:
-        print("ERROR: No per-stock metrics CSVs found. Run Script 02 first.")
+    # Load all per-stock metrics
+    data: dict[tuple[str, str], pd.DataFrame] = {}
+    aggs: dict[tuple[str, str], pd.DataFrame] = {}
+
+    for strategy in STRATEGIES:
+        for target in TARGETS:
+            df = _load(strategy, target)
+            if df is not None:
+                data[(strategy, target)] = df
+
+    if not data:
+        print("ERROR: No per-stock metrics CSVs found. Run Script 01 first.")
         sys.exit(1)
 
-    # ── Return target ────────────────────────────────────────────────────────
-    ret_sc_agg, ret_wf_agg = _process_target(
-        SC_RET, WF_RET, "RETURN",
-        "aggregate_leaderboard.csv",
-        "aggregate_leaderboard_wf.csv",
-        "aggregate_comparison.csv",
-    )
+    # ── Individual leaderboards ──────────────────────────────────────────────
+    for (strategy, target), df in data.items():
+        tag = f"{STRATEGY_LABELS[strategy]}, {TARGET_LABELS[target]}"
+        out_name = f"aggregate_leaderboard_{strategy}_{target}.csv"
 
-    # ── Price target ─────────────────────────────────────────────────────────
-    price_sc_agg, price_wf_agg = _process_target(
-        SC_PRICE, WF_PRICE, "PRICE",
-        "aggregate_leaderboard_price.csv",
-        "aggregate_leaderboard_price_wf.csv",
-        "aggregate_comparison_price.csv",
-    )
+        agg = build_aggregate(df)
+        aggs[(strategy, target)] = agg
+        agg.to_csv(DISS_DIR / out_name, index=False)
+
+        _section(f"{tag} — Aggregate Leaderboard (ranked by RMSE)")
+        print(agg.to_string(index=False))
+        print(f"\nSaved → {DISS_DIR / out_name}")
+
+        _section(f"{tag} — Sector Breakdown (Mean RMSE)")
+        print(build_sector_table(df).to_string())
+
+    # ── SC vs WF comparisons (per target type) ──────────────────────────────
+    for target in TARGETS:
+        sc_key = ("sc", target)
+        wf_key = ("wf", target)
+        if sc_key in aggs and wf_key in aggs:
+            _section(f"{TARGET_LABELS[target]} — SC vs WF Comparison")
+            comp = build_comparison(aggs[sc_key], aggs[wf_key])
+            out = f"aggregate_comparison_{target}.csv"
+            comp.to_csv(DISS_DIR / out, index=False)
+            print(comp.to_string(index=False))
+            print(f"\nSaved → {DISS_DIR / out}")
+            rank_stability(aggs[sc_key], aggs[wf_key])
 
     # ── Return vs Price comparison ───────────────────────────────────────────
-    # Use single-cutoff aggregates for the comparison (most common baseline)
-    if ret_sc_agg is not None and price_sc_agg is not None:
-        print_section("RETURN vs PRICE — Single-Cutoff Comparison")
+    ret_key = ("sc", "return")
+    price_key = ("sc", "price")
+    if ret_key in aggs and price_key in aggs:
+        _section("RETURN vs PRICE — Single-Cutoff Comparison")
+        ret_agg = aggs[ret_key]
+        price_agg = aggs[price_key]
 
-        ret_cols = ret_sc_agg[["model_id", "model_label", "mean_r2",
-                                "mean_direction_accuracy"]].copy()
+        ret_cols = ret_agg[["model_id", "model_label", "mean_r2",
+                             "mean_direction_accuracy"]].copy()
         ret_cols.columns = ["model_id", "model", "ret_r2", "ret_dir_acc"]
-        price_cols = price_sc_agg[["model_id", "mean_r2",
-                                    "mean_direction_accuracy"]].copy()
+        price_cols = price_agg[["model_id", "mean_r2",
+                                 "mean_direction_accuracy"]].copy()
         price_cols.columns = ["model_id", "price_r2", "price_dir_acc"]
         rvp = ret_cols.merge(price_cols, on="model_id", how="outer")
         rvp["r2_delta"] = rvp["price_r2"] - rvp["ret_r2"]
         rvp["dir_acc_delta"] = rvp["price_dir_acc"] - rvp["ret_dir_acc"]
         rvp = rvp.sort_values("ret_r2", ascending=False)
-        rvp.to_csv(DISS_DIR / "aggregate_return_vs_price.csv", index=False)
 
+        out = "aggregate_comparison_return_vs_price.csv"
+        rvp.to_csv(DISS_DIR / out, index=False)
         print(rvp.to_string(index=False))
-        print(f"\nSaved → {DISS_DIR / 'aggregate_return_vs_price.csv'}")
+        print(f"\nSaved → {DISS_DIR / out}")
 
-        ret_rank = list(ret_sc_agg["model_id"])
-        price_rank = list(price_sc_agg["model_id"])
+        ret_rank = list(ret_agg["model_id"])
+        price_rank = list(price_agg["model_id"])
         if ret_rank == price_rank:
             print("\n✓ Model ranking is IDENTICAL for return and price targets.")
         else:
             print("\n⚠ Model ranking DIFFERS between return and price targets:")
             print(f"  Return : {ret_rank}")
             print(f"  Price  : {price_rank}")
+
+    # ── Text leaderboard (replaces finsight compare) ─────────────────────────
+    _section("Generating leaderboard.txt")
+    lines: list[str] = []
+    lines.append("FinSight-AI — Dissertation Experiment Leaderboard")
+    lines.append("=" * 60)
+    for (strategy, target), agg in sorted(aggs.items()):
+        tag = f"{STRATEGY_LABELS[strategy]}, {TARGET_LABELS[target]}"
+        lines.append(f"\n{tag}")
+        lines.append("-" * 60)
+        lines.append(
+            f"{'Rank':<5} {'Model':<30} {'MAE':>10} {'RMSE':>10} "
+            f"{'R²':>8} {'DirAcc':>8}"
+        )
+        lines.append("-" * 60)
+        for _, row in agg.iterrows():
+            lines.append(
+                f"{row['rank']:<5} {row['model_label']:<30} "
+                f"{row['mean_mae']:>10.6f} {row['mean_rmse']:>10.6f} "
+                f"{row['mean_r2']:>8.4f} {row['mean_direction_accuracy']:>7.1%}"
+            )
+    text = "\n".join(lines) + "\n"
+    (DISS_DIR / "leaderboard.txt").write_text(text)
+    print(text)
+    print(f"Saved → {DISS_DIR / 'leaderboard.txt'}")
 
 
 if __name__ == "__main__":
